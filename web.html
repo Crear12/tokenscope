@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Token usage</title><link rel="stylesheet" href="/web.css"><script defer src="/web.js"></script></head>
+<body><main>
+<header><div><h1>Token usage</h1><p id="freshness">Loading last successful collection…</p></div>
+<div class="actions"><label>Refresh every <input id="interval" type="number" min="5" max="600" step="1" value="300"> seconds</label><button id="apply">Apply</button><button id="refresh">Refresh now</button></div></header>
+<p id="status" role="status" aria-live="polite">Connecting…</p>
+<section class="controls" aria-label="Usage filters">
+<label>From <input id="from" type="date"></label><label>Through <input id="through" type="date"></label>
+<button id="reset">All dates & models</button>
+<details id="model-filter"><summary id="selection">Models · all</summary>
+<input id="search" type="search" placeholder="Find model names" aria-label="Find model names">
+<div class="actions"><button id="all">Select all</button><button id="none">Clear selection</button></div><div id="models"></div></details>
+</section>
+<section class="metrics" aria-label="Filtered totals"><div><span>Total tokens</span><strong id="tokens">—</strong></div><div><span>Recorded estimated cost</span><strong id="cost">—</strong></div><div><span>Requests</span><strong id="requests">—</strong></div><div><span>Selected models</span><strong id="count">—</strong></div></section>
+<section class="chart-card"><h2>Daily tokens and cost</h2><p class="key">Colored bars: tokens by model, left axis. <b>Black line: daily total estimated USD, right axis.</b></p>
+<div id="chart-wrap"><svg id="chart" role="img" aria-label="Daily tokens by model with daily estimated cost line"></svg></div><p id="empty" hidden>No usage matches these filters.</p>
+<div id="tooltip" role="status" hidden></div></section>
+<section><h2>Monthly leading model</h2><p>Most tokens within the selected dates and models, including cache. Costs below belong to that model, not all models.</p><div id="leaders"></div></section>
+<details class="source"><summary>Sources, freshness & definitions</summary><div id="sources"></div><ul id="caveats"></ul><p>Recorded costs are estimates, not invoices or subscription fees. Zero cost can mean missing pricing. Dates follow each source machine’s local calendar. Incomplete months use available days.</p></details>
+<footer>LAN viewers can change the shared refresh interval. Date and model filters affect only your browser. No requests overlap; refreshes run at clock-aligned boundaries while this command is running.</footer>
+</main></body></html>
