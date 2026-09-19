@@ -29,6 +29,7 @@ and which model leads each month—without opening a statistics page on every ma
 | **Daily tokens + cost** | Compare model-colored token bars with a daily estimated-USD line. |
 | **Monthly model leaders** | Read the top model, token share, and that model's monthly cost directly on the chart. |
 | **Focused exploration** | Narrow the date range and select one or several model names. |
+| **Per-session detail** | Toggle a sortable session table; the same date and model filters apply to its tokens and cost. |
 | **One or many machines** | Collect locally or read remote statistics through your own private SSH configuration. |
 | **Refresh on your terms** | Choose 5 seconds to 10 minutes in the browser, aligned to the clock. |
 | **Portable reports** | Generate PNG/SVG charts, CSV tables, and JSON/Markdown summaries. |
@@ -85,6 +86,27 @@ The latest successful aggregate overwrites `output/web.json` atomically. Failed
 refreshes preserve the previous result. Temporary exports are cleaned up. Restart
 after editing configuration. Each refresh reads all retained CC-Switch statistics;
 it is not an incremental ingestion process. Sync CC-Switch first for fresh imports.
+
+## Per-session usage
+
+Check **Show per-session usage** in the filter bar to reveal the table; uncheck it
+to hide the table without changing your data selection. Sort by tokens, estimated
+cost, or latest selected activity. Large results show 50 sessions at a time.
+
+Each row groups a recorded session ID within one machine and application. Usage is
+first filtered by the shared date range and model selection, then summed per session.
+A session spanning several days therefore shows **only its selected-day usage**,
+not lifetime usage. Model switches remain in the same session, with selected models
+listed together. Fresh input, cache read/write, output, total tokens, requests and
+estimated USD are shown separately. Activity dates are first/last *selected* days.
+
+Session IDs are SHA-256 hashed before export; the table displays a short reference,
+with the full hash in its tooltip. Hashes are pseudonymous identifiers, not secrets
+or a guarantee of anonymity. No conversation titles or prompts are read for this view.
+Some sources use request-scoped session IDs. Requests without usable IDs and
+historical rollups cannot be assigned to sessions; their tokens remain in the daily
+charts and are reported as lacking session detail. Old caches require one successful
+refresh with the updated collector. Static exports also include `session_daily_usage.csv`.
 
 ## Optional remote sources
 

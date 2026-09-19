@@ -4,6 +4,7 @@ import json
 import pathlib
 import sys
 import os
+import hashlib
 
 # Conda on Windows may need this process-local search directory outside activation.
 _dll_dir = pathlib.Path(sys.prefix) / 'Library' / 'bin'
@@ -42,7 +43,9 @@ def enrich_session_providers(rows, roots):
         if provider:
             row['session_provider'] = provider
             matched += 1
-        row.pop('session_id', None)
+        sid = row.pop('session_id', None)
+        if isinstance(sid, str) and sid.strip() and sid.strip().lower() not in {'unknown', 'none', 'null', 'default'}:
+            row['session_key'] = hashlib.sha256(sid.encode()).hexdigest()
     return {'headers_read': inspected, 'sessions_matched': len(providers), 'requests_matched': matched,
             'sessions_unmatched': len(wanted - providers.keys())}
 

@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = {'/': ('web.html', 'text/html'), '/web.js': ('web.js', 'text/javascript'),
+          '/session_usage.js': ('session_usage.js', 'text/javascript'),
           '/web.css': ('web.css', 'text/css')}
 
 
@@ -49,7 +50,17 @@ def public_data(folder):
             for row in csv.DictReader(stream):
                 rows.append({k: row[k] for k in ('date', 'host', 'app', 'model', 'cost_usd')} |
                             {'tokens': int(row['total_tokens']), 'requests': int(row['requests'])})
-    return {'generated_at': summary['generated_at_utc'], 'rows': rows,
+    session_rows = None
+    if summary.get('session_detail_available'):
+        session_rows = []
+        path = folder / 'session_daily_usage.csv'
+        if path.exists():
+            with path.open(encoding='utf-8', newline='') as stream:
+                for row in csv.DictReader(stream):
+                    session_rows.append({k: row[k] for k in ('date', 'host', 'app', 'session_key', 'model', 'cost_usd')} |
+                                        {k: int(row[k]) for k in ('requests', 'fresh_input_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'output_tokens')} |
+                                        {'tokens': int(row['total_tokens'])})
+    return {'generated_at': summary['generated_at_utc'], 'rows': rows, 'session_rows': session_rows,
             'sources': {name: {'collected_at': a['collected_at'], 'timezone': a['timezone']}
                         for name, a in summary['sources'].items()},
             'caveats': [s for s in summary['caveats'] if not s.startswith('TPS')]}

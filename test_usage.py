@@ -48,7 +48,46 @@ class Accounting(unittest.TestCase):
         self.assertEqual(rows[0]['session_provider'], 'ollama')
         self.assertNotIn('session_provider', rows[1])
         self.assertNotIn('session_id', rows[0])
+        self.assertEqual(len(rows[0]['session_key']), 64)
+        self.assertNotEqual(rows[0]['session_key'], sid)
         self.assertEqual(audit['sessions_unmatched'], 1)
+
+    def test_session_keys_missing_and_source_ids(self):
+        rows = [row(session_id=s, data_source='proxy') for s in ('same-id', 'same-id', '', None, 'unknown')]
+        enrich_session_providers(rows, [])
+        self.assertEqual(rows[0]['session_key'], rows[1]['session_key'])
+        self.assertTrue(all('session_key' not in r for r in rows[2:]))
+        self.assertTrue(all('session_id' not in r for r in rows))
+
+    def test_session_detail_grain_dedup_and_public_projection(self):
+        from app import public_data
+        requests = [row(request_id=str(i), provider_id='_session', date=date, model=model,
+                        session_key='hashed-id', total_cost_usd='0.10')
+                    for i, (date, model) in enumerate([('2026-01-31', 'a'), ('2026-02-01', 'a'), ('2026-02-01', 'b')])]
+        requests.append(row(request_id='no-session', provider_id='_session', date='2026-02-01', total_cost_usd='0.20'))
+        rollup = row(provider_id='_session', date='2026-01-01', request_count=10, total_cost_usd='1')
+        data = dict(collected_at='2026-02-02', host_timezone='UTC', providers=[], proxy_request_logs=requests, usage_daily_rollups=[rollup])
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            result = build([('one', data), ('two', data)], out, render_figures=False)
+            public = public_data(out)
+        self.assertEqual(len(public['session_rows']), 3)
+        self.assertEqual(sum(r['requests'] for r in public['session_rows']), 3)
+        self.assertEqual({r['host'] for r in public['session_rows']}, {'one'})
+        self.assertEqual({r['date'] for r in public['session_rows']}, {'2026-01-31', '2026-02-01'})
+        self.assertEqual(sum(r['tokens'] for r in public['session_rows']), 3*1120)
+        self.assertEqual(result['cross_host_duplicates_removed'], 4)
+        self.assertEqual(result['total_cost_usd'], '2.50')
+        self.assertTrue(all('request_id' not in r and 'session_id' not in r for r in public['session_rows']))
+        self.assertEqual(sum(r['tokens'] for r in public['rows'])-sum(r['tokens'] for r in public['session_rows']), 3*1120)
+
+    def test_empty_session_detail_is_available(self):
+        from app import public_data
+        data = dict(collected_at='2026-02-02', host_timezone='UTC', providers=[], proxy_request_logs=[], usage_daily_rollups=[])
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            build([('one', data)], out, render_figures=False)
+            self.assertEqual(public_data(out)['session_rows'], [])
 
     def test_models_and_costs_remain_separate(self):
         requests = [row(request_id=str(i), provider_id='_session', date='2026-09-01',

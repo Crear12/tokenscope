@@ -104,6 +104,7 @@ def write_csv(path, rows):
 def build(sources, out, render_figures=True):
     out.mkdir(parents=True, exist_ok=True)
     totals = defaultdict(lambda: defaultdict(int))
+    session_totals = defaultdict(lambda: defaultdict(int))
     samples = []
     audit = {}
     seen = {}
@@ -151,6 +152,13 @@ def build(sources, out, render_figures=True):
             for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
                 t[field] += r[field]
             t['cost_usd'] = t.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
+            if grain == 'request' and r.get('session_key'):
+                st = session_totals[(r['date'], host, app, r['session_key'], model)]
+                st['requests'] += count
+                st['fresh_input_tokens'] += fresh(r)
+                for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
+                    st[field] += r[field]
+                st['cost_usd'] = st.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
             duration = r.get('duration_ms') or r.get('latency_ms') or 0
             if grain == 'request' and duration > 0 and r['output_tokens'] > 0 and 200 <= r['status_code'] < 300:
                 samples.append({'date': r['date'], 'local_datetime': r.get('local_datetime', r['date']), 'host': host, 'app': app, 'provider': provider, 'model': model, 'created_at': r['created_at'], 'output_tokens': r['output_tokens'], 'duration_ms': duration, 'duration_source': 'duration_ms' if r.get('duration_ms') else 'latency_ms', 'tps': r['output_tokens'] / (duration / 1000)})
@@ -185,6 +193,15 @@ def build(sources, out, render_figures=True):
             selected = [r for r in daily if r['host'] == host and r['app'] == app]
             summary['by_host_app'].append(dict(host=host, app=app, tokens=sum(r['total_tokens'] for r in selected), requests=sum(r['requests'] for r in selected), start=min(r['date'] for r in selected), end=max(r['date'] for r in selected)))
     write_csv(out / 'daily_usage.csv', daily)
+    session_daily = []
+    for (date, host, app, session_key, model), st in sorted(session_totals.items()):
+        item = dict(date=date, host=host, app=app, session_key=session_key, model=model, **st)
+        item['total_tokens'] = sum(st[k] for k in ('fresh_input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens'))
+        item['cost_usd'] = str(item['cost_usd'])
+        session_daily.append(item)
+    write_csv(out / 'session_daily_usage.csv', session_daily)
+    summary['session_detail_available'] = True
+    summary['caveats'].append('Per-session detail uses recorded session IDs, hashed before export, grouped per machine and application. Some sources use request-scoped IDs. Rollups and requests without usable IDs are excluded from session detail, not from daily totals.')
     write_csv(out / 'request_tps.csv', samples)
     if render_figures:
         render(daily, samples, out, summary)

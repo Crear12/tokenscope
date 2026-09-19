@@ -10,7 +10,32 @@ function color(name){
 }
 function element(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 function svg(tag,attrs,text){const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
-function filtered(){return (data?.rows||[]).filter(r=>(!$('from').value||r.date>=$('from').value)&&(!$('through').value||r.date<=$('through').value)&&selected.has(r.model));}
+function filtered(rows=data?.rows||[]){return filterUsageRows(rows,$('from').value,$('through').value,selected);}
+let sessionLimit=50;
+function renderSessions(resetLimit=true){
+  if(resetLimit)sessionLimit=50;
+  $('session-panel').hidden=!$('show-sessions').checked;
+  if($('session-panel').hidden)return;
+  $('session-body').replaceChildren();$('session-more').hidden=true;
+  if(!Array.isArray(data?.session_rows)){
+    $('session-coverage').textContent='Session detail is unavailable in this snapshot. Refresh collection with the updated collector.';
+    $('session-table').hidden=true;$('session-empty').hidden=true;return;
+  }
+  const groups=summarizeSessions(filtered(data.session_rows));
+  const mode=$('session-sort').value;
+  groups.sort((a,b)=>(mode==='latest'?b.last.localeCompare(a.last):b[mode]-a[mode])||a.session_key.localeCompare(b.session_key)||a.host.localeCompare(b.host)||a.app.localeCompare(b.app));
+  const totals=filtered(),allTokens=totals.reduce((s,r)=>s+r.tokens,0),allRequests=totals.reduce((s,r)=>s+r.requests,0);
+  const tokens=groups.reduce((s,r)=>s+r.tokens,0),requests=groups.reduce((s,r)=>s+r.requests,0),cost=groups.reduce((s,r)=>s+r.cost,0);
+  $('session-coverage').textContent=`${groups.length.toLocaleString()} identified sessions · ${tokens.toLocaleString()} tokens · ${money(cost)} est. · ${requests.toLocaleString()} requests. ${Math.max(0,allTokens-tokens).toLocaleString()} tokens / ${Math.max(0,allRequests-requests).toLocaleString()} requests lack session detail (including historical rollups). Showing ${Math.min(sessionLimit,groups.length)} of ${groups.length.toLocaleString()} sessions.`;
+  $('session-table').hidden=!groups.length;$('session-empty').hidden=groups.length>0;
+  for(const s of groups.slice(0,sessionLimit)){
+    const tr=element('tr');const id=element('td',s.session_key.slice(0,12));id.title='Hashed session reference: '+s.session_key;tr.append(id);
+    const values=[s.first===s.last?s.first:`${s.first} → ${s.last}`,`${s.host} / ${s.app}`,s.models.join(', '),
+      ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString()),money(s.cost)];
+    for(const value of values)tr.append(element('td',value));$('session-body').append(tr);
+  }
+  $('session-more').hidden=groups.length<=sessionLimit;
+}
 function modelControls(){
   const search=$('search').value.toLowerCase();$('models').replaceChildren();
   for(const model of [...known].sort()){
@@ -22,6 +47,7 @@ function modelControls(){
 }
 function render(){
   const rows=filtered();$('selection').textContent=`Models · ${selected.size} of ${known.size}`;
+  renderSessions();
   $('tokens').textContent=compact(rows.reduce((a,r)=>a+r.tokens,0));
   $('tokens').title=rows.reduce((a,r)=>a+r.tokens,0).toLocaleString('en-US');
   $('cost').textContent=money(rows.reduce((a,r)=>a+Number(r.cost_usd),0));
@@ -125,6 +151,9 @@ async function action(path,body){try{await request(path,body);await poll();}catc
 $('refresh').onclick=()=>action('/api/refresh',{});
 $('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isInteger(seconds)||seconds<5||seconds>600){$('status').textContent='Choose an integer from 5 to 600 seconds.';return;}action('/api/interval',{seconds});};
 new ResizeObserver(()=>{if(data)render();}).observe($('chart-wrap'));
+$('show-sessions').addEventListener('change',()=>renderSessions());
+$('session-sort').addEventListener('change',()=>renderSessions());
+$('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};
 if(window.TOKEN_SCOPE_DEMO){
   installData(window.TOKEN_SCOPE_DEMO);
   $('freshness').textContent='Interactive demo · entirely synthetic data · January–March 2026';
