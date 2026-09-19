@@ -11,17 +11,78 @@ function color(name){
 function element(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 function svg(tag,attrs,text){const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
 function filtered(rows=data?.rows||[]){return filterUsageRows(rows,$('from').value,$('through').value,selected);}
-let sessionLimit=50;
+let sessionLimit=50, activeSessionKey=null;
+function openSession(key){
+  activeSessionKey=key;
+  renderSessions(false);
+  $('session-detail').scrollIntoView({block:'nearest'});
+}
+function renderSessionMatrix(rows){
+  const root=$('session-matrix'),legend=$('matrix-legend');root.replaceChildren();legend.replaceChildren();
+  $('matrix-detail').textContent='Hover or focus a colored cell for its title, date and exact token count. Click a title or cell to open its session detail.';
+  const matrix=sessionMatrix(rows,$('from').value,$('through').value);
+  if(!matrix.sessions.length){root.append(element('p','No session detail matches these filters.'));return;}
+  const cell=matrix.dates.length<=5?110:20,labelWidth=280,width=Math.max(matrix.dates.length*cell,root.clientWidth-labelWidth,110),dayWidth=width/matrix.dates.length;
+  const bar=element('span',undefined,'matrix-colorbar');
+  bar.style.background=`linear-gradient(to right, ${Array.from({length:17},(_,i)=>jetColor(i,0,16)).join(',')})`;
+  legend.append(element('span',`${matrix.min.toLocaleString()} tokens`),bar,element('span',`${matrix.max.toLocaleString()} tokens`),element('span',`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString()} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`));
+  if(matrix.min===matrix.max)legend.append(element('span','All observed cells are equal (midpoint color).'));
+  const grid=element('div',undefined,'matrix-grid');grid.style.width=(width+labelWidth)+'px';
+  const corner=element('div','Session title / Date','matrix-label matrix-corner');grid.append(corner);
+  const header=svg('svg',{width,height:40,role:'img','aria-label':'Date axis'});header.classList.add('matrix-header');
+  const tickStep=Math.ceil(100/dayWidth);
+  matrix.dates.forEach((date,i)=>{if(i===0||i===matrix.dates.length-1||(i%tickStep===0&&i<matrix.dates.length-tickStep))header.append(svg('text',{x:i===0?4:i===matrix.dates.length-1?width-4:i*dayWidth+dayWidth/2,y:26,'font-size':12,'text-anchor':i===0?'start':i===matrix.dates.length-1?'end':'middle',fill:'#445466'},date));});
+  grid.append(header);
+  const positions=new Map(matrix.dates.map((date,i)=>[date,i]));
+  for(const s of matrix.sessions){
+    const name=s.title||'Title unavailable',full=`${name} · ${s.host} / ${s.app}`;
+    const label=element('div',undefined,'matrix-label'),open=element('button',name,'matrix-open');open.type='button';open.title=`Open ${full}`;open.setAttribute('aria-label',`Open session detail: ${full}`);open.onclick=()=>openSession(s.key);label.append(open);grid.append(label);
+    const row=svg('svg',{width,height:28,role:'group','aria-label':full});row.classList.add('matrix-row');
+    for(const [date,tokens]of s.days){
+      const text=`${full} · ${date} · ${tokens.toLocaleString()} tokens`;
+      const rect=svg('rect',{x:positions.get(date)*dayWidth,y:1,width:dayWidth,height:26,fill:jetColor(tokens,matrix.min,matrix.max),tabindex:0,role:'img','aria-label':text,'data-tokens':tokens});
+      const show=()=>{$('matrix-detail').textContent=text+' Click to open this session detail.';};rect.addEventListener('mouseenter',show);rect.addEventListener('focus',show);rect.addEventListener('click',()=>openSession(s.key));rect.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openSession(s.key);}});
+      row.append(rect);
+    }
+    grid.append(row);
+  }
+  root.append(grid);
+}
+function appendCells(body,values){const tr=element('tr');for(const value of values)tr.append(element('td',value));body.append(tr);}
+function renderSessionDetail(rows, groups){
+  const panel=$('session-detail');
+  if(!activeSessionKey){panel.hidden=true;return;}
+  const detail=sessionDetails(rows,activeSessionKey);
+  if(!detail.session || !groups.some(s=>sessionIdentity(s)===activeSessionKey)){activeSessionKey=null;panel.hidden=true;return;}
+  const s=detail.session,title=s.title||'Title unavailable';panel.hidden=false;
+  $('session-detail-title').textContent=title;
+  $('session-detail-meta').textContent=`${s.host} / ${s.app} · ${s.first===s.last?s.first:`${s.first} → ${s.last}`} · ${s.models.join(', ')}`;
+  $('session-detail-summary').replaceChildren();
+  for(const [label,value] of [['Total tokens',s.tokens.toLocaleString()],['Recorded estimated cost',money(s.cost)],['Requests',s.requests.toLocaleString()],['Fresh input',s.fresh_input_tokens.toLocaleString()],['Cache read',s.cache_read_tokens.toLocaleString()],['Cache write',s.cache_creation_tokens.toLocaleString()],['Output',s.output_tokens.toLocaleString()]]){
+    const card=element('div');card.append(element('span',label),element('strong',value));$('session-detail-summary').append(card);
+  }
+  const componentBody=$('session-component-body');componentBody.replaceChildren();
+  for(const [label,field] of [['Fresh input','fresh_input_tokens'],['Cache read','cache_read_tokens'],['Cache write','cache_creation_tokens'],['Output','output_tokens']]){
+    const tokens=s[field],share=s.tokens?100*tokens/s.tokens:0;appendCells(componentBody,[label,tokens.toLocaleString(),`${share.toFixed(1)}%`]);
+  }
+  const dateBody=$('session-date-body');dateBody.replaceChildren();
+  for(const day of detail.daily)appendCells(dateBody,[day.value,day.models.join(', '),...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>day[field].toLocaleString()),money(day.cost)]);
+  const modelBody=$('session-model-body');modelBody.replaceChildren();
+  for(const model of detail.models)appendCells(modelBody,[model.value,...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>model[field].toLocaleString()),money(model.cost)]);
+}
 function renderSessions(resetLimit=true){
   if(resetLimit)sessionLimit=50;
   $('session-panel').hidden=!$('show-sessions').checked;
   if($('session-panel').hidden)return;
   $('session-body').replaceChildren();$('session-more').hidden=true;
   if(!Array.isArray(data?.session_rows)){
+    renderSessionMatrix([]);
+    activeSessionKey=null;renderSessionDetail([],[]);
     $('session-coverage').textContent='Session detail is unavailable in this snapshot. Refresh collection with the updated collector.';
     $('session-table').hidden=true;$('session-empty').hidden=true;return;
   }
   const groups=summarizeSessions(filtered(data.session_rows));
+  renderSessionMatrix(filtered(data.session_rows));
   const mode=$('session-sort').value;
   groups.sort((a,b)=>(mode==='latest'?b.last.localeCompare(a.last):b[mode]-a[mode])||a.session_key.localeCompare(b.session_key)||a.host.localeCompare(b.host)||a.app.localeCompare(b.app));
   const totals=filtered(),allTokens=totals.reduce((s,r)=>s+r.tokens,0),allRequests=totals.reduce((s,r)=>s+r.requests,0);
@@ -29,12 +90,13 @@ function renderSessions(resetLimit=true){
   $('session-coverage').textContent=`${groups.length.toLocaleString()} identified sessions · ${tokens.toLocaleString()} tokens · ${money(cost)} est. · ${requests.toLocaleString()} requests. ${Math.max(0,allTokens-tokens).toLocaleString()} tokens / ${Math.max(0,allRequests-requests).toLocaleString()} requests lack session detail (including historical rollups). Showing ${Math.min(sessionLimit,groups.length)} of ${groups.length.toLocaleString()} sessions.`;
   $('session-table').hidden=!groups.length;$('session-empty').hidden=groups.length>0;
   for(const s of groups.slice(0,sessionLimit)){
-    const tr=element('tr');const id=element('td',s.session_key.slice(0,12));id.title='Hashed session reference: '+s.session_key;tr.append(id);
+    const key=sessionIdentity(s),tr=element('tr');if(key===activeSessionKey)tr.className='session-active';const title=element('td'),open=element('button',s.title||'Title unavailable','session-open');open.type='button';open.title=s.title||'No saved conversation title matches this source record.';open.setAttribute('aria-expanded',String(key===activeSessionKey));open.onclick=()=>openSession(key);title.append(open);tr.append(title);
     const values=[s.first===s.last?s.first:`${s.first} → ${s.last}`,`${s.host} / ${s.app}`,s.models.join(', '),
       ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString()),money(s.cost)];
     for(const value of values)tr.append(element('td',value));$('session-body').append(tr);
   }
   $('session-more').hidden=groups.length<=sessionLimit;
+  renderSessionDetail(filtered(data.session_rows),groups);
 }
 function modelControls(){
   const search=$('search').value.toLowerCase();$('models').replaceChildren();
@@ -154,6 +216,7 @@ new ResizeObserver(()=>{if(data)render();}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};
+$('session-detail-close').onclick=()=>{activeSessionKey=null;renderSessions(false);};
 if(window.TOKEN_SCOPE_DEMO){
   installData(window.TOKEN_SCOPE_DEMO);
   $('freshness').textContent='Interactive demo · entirely synthetic data · January–March 2026';

@@ -29,6 +29,7 @@ def synthetic_data():
             # Some days deliberately lack session detail to demonstrate coverage.
             if day % 11:
                 session_rows.append(dict(rows[-1], session_key=hashlib.sha256(f'fictional-session-{day // 10}'.encode()).hexdigest(),
+                                         session_title=('Build a sample dashboard', 'Review a fictional API', 'Explore a demo dataset')[day // 10 % 3] + f' · iteration {day // 10 + 1}',
                                          fresh_input_tokens=tokens//4, cache_read_tokens=tokens//2,
                                          cache_creation_tokens=tokens//10,
                                          output_tokens=tokens-tokens//4-tokens//2-tokens//10))
@@ -52,6 +53,7 @@ def build():
                         '<link rel="stylesheet" href="demo.css"><script defer src="demo-data.js"></script><script defer src="web.js"></script>')
     page = page.replace('<body><main>', '<body><main><nav class="demo-nav"><a href="https://github.com/Crear12/tokenscope">◈ TokenScope</a><span class="demo-badge">SYNTHETIC DEMO</span><a href="https://github.com/Crear12/tokenscope#quick-start">Get the code ↗</a></nav>')
     page = page.replace('<h1>Token usage</h1>', '<p class="eyebrow">YOUR MODELS. ONE CLEAR VIEW.</p><h1>Tokens tell a story.<br>See the whole picture.</h1>')
+    page = page.replace('id="show-sessions" type="checkbox"', 'id="show-sessions" type="checkbox" checked')
     page = page.replace('<div class="actions"><label>Refresh every', '<div class="actions live-controls" hidden><label>Refresh every', 1)
     page = page.replace('</header>', '<div class="demo-actions"><button id="replay">↻ Replay animation</button><a href="https://github.com/Crear12/tokenscope">View on GitHub ↗</a></div></header>', 1)
     page = page.replace('LAN viewers can change the shared refresh interval. Date and model filters affect only your browser. No requests overlap; refreshes run at clock-aligned boundaries while this command is running.',

@@ -12,6 +12,61 @@ _dll_handle = os.add_dll_directory(str(_dll_dir)) if os.name == 'nt' and _dll_di
 import sqlite3
 
 
+def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claude/projects'):
+    """Read saved conversation names only; never synthesize titles from messages."""
+    wanted = {r.get('session_id') for r in rows if r.get('session_id')}
+    codex_titles, claude_titles = {}, {}
+    home = pathlib.Path(codex_home).expanduser()
+    index = home / 'session_index.jsonl'
+    if index.exists():
+        with index.open(encoding='utf-8') as stream:
+            for line in stream:
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                if entry.get('id') in wanted and entry.get('thread_name'):
+                    codex_titles[entry['id']] = entry['thread_name']
+    databases = sorted(home.glob('state_*.sqlite'),
+                       key=lambda p: int(p.stem.split('_')[-1]) if p.stem.split('_')[-1].isdigit() else -1,
+                       reverse=True)
+    if databases:
+        db = sqlite3.connect(databases[0].resolve().as_uri() + '?mode=ro', uri=True, timeout=30)
+        try:
+            columns = {r[1] for r in db.execute('PRAGMA table_info(threads)')}
+            # In desktop state, title can be the original prompt; name is the UI title.
+            if {'id', 'name'} <= columns:
+                ids = sorted(wanted)
+                for offset in range(0, len(ids), 500):
+                    chunk = ids[offset:offset+500]
+                    for sid, name in db.execute('SELECT id,name FROM threads WHERE id IN (' + ','.join('?' for _ in chunk) + ')', chunk):
+                        if name and name.strip():
+                            codex_titles[sid] = name
+        finally:
+            db.close()
+    root = pathlib.Path(claude_projects).expanduser()
+    for path in root.glob('*/*.jsonl'):
+        if path.stem not in wanted:
+            continue
+        with path.open(encoding='utf-8') as stream:
+            for line in stream:
+                # Ignore message records; only saved title metadata is parsed.
+                if '"custom-title"' not in line:
+                    continue
+                entry = json.loads(line)
+                if entry.get('type') == 'custom-title' and entry.get('sessionId') == path.stem:
+                    title = entry.get('customTitle')
+                    if isinstance(title, str) and title.strip():
+                        claude_titles[path.stem] = title
+    matched = 0
+    for row in rows:
+        titles = codex_titles if row['app_type'] == 'codex' else claude_titles if row['app_type'] in ('claude', 'claude-desktop') else {}
+        title = titles.get(row.get('session_id'))
+        if title:
+            row['session_title'] = title
+            matched += 1
+    return {'requests_with_saved_title': matched}
+
+
 def enrich_session_providers(rows, roots):
     """Join Codex headers by session ID; never export session text or paths."""
     wanted = {r.get('session_id') for r in rows if r.get('data_source') == 'codex_session'} - {None, ''}
@@ -50,7 +105,7 @@ def enrich_session_providers(rows, roots):
             'sessions_unmatched': len(wanted - providers.keys())}
 
 
-def collect(database, session_roots=None):
+def collect(database, session_roots=None, codex_home='~/.codex', claude_projects='~/.claude/projects'):
     path = pathlib.Path(database).expanduser().resolve()
     db = sqlite3.connect(path.as_uri() + '?mode=ro', uri=True, timeout=30)
     db.row_factory = sqlite3.Row
@@ -77,6 +132,7 @@ def collect(database, session_roots=None):
         row['date'] = dates[row['request_id']][:10]
         row['local_datetime'] = dates[row['request_id']]
     db.close()
+    result['session_titles'] = enrich_session_titles(result['proxy_request_logs'], codex_home, claude_projects)
     result['session_metadata'] = enrich_session_providers(result['proxy_request_logs'],
         session_roots if session_roots is not None else ['~/.codex/sessions', '~/.codex/archived_sessions'])
     return result

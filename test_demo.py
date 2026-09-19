@@ -19,3 +19,13 @@ class SyntheticDemo(unittest.TestCase):
                 if int(row['date'][5:7]) == month:
                     totals[row['model']] = totals.get(row['model'], 0) + row['tokens']
             self.assertEqual(max(totals, key=totals.get), expected)
+
+    def test_session_titles_and_components_are_synthetic(self):
+        data = synthetic_data()
+        titles = {f'{name} · iteration {i+1}' for i in range(9)
+                  for name in ('Build a sample dashboard', 'Review a fictional API', 'Explore a demo dataset')}
+        for row in data['session_rows']:
+            self.assertIn(row['session_title'], titles)
+            self.assertIn(row['host'], {'workstation', 'lab'})
+            self.assertEqual(row['tokens'], sum(row[k] for k in
+                             ('fresh_input_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'output_tokens')))

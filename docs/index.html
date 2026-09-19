@@ -8,7 +8,7 @@
 <section class="controls" aria-label="Usage filters">
 <label>From <input id="from" type="date"></label><label>Through <input id="through" type="date"></label>
 <button id="reset">All dates & models</button>
-<label><input id="show-sessions" type="checkbox" aria-controls="session-panel">Show per-session usage</label>
+<label><input id="show-sessions" type="checkbox" checked aria-controls="session-panel">Show per-session usage</label>
 <details id="model-filter"><summary id="selection">Models · all</summary>
 <input id="search" type="search" placeholder="Find model names" aria-label="Find model names">
 <div class="actions"><button id="all">Select all</button><button id="none">Clear selection</button></div><div id="models"></div></details>
@@ -20,13 +20,26 @@
 <section><h2>Monthly leading model</h2><p>Most tokens within the selected dates and models, including cache. Costs below belong to that model, not all models.</p><div id="leaders"></div></section>
 <section id="session-panel" class="chart-card" hidden aria-label="Per-session token usage">
 <h2>Per-session token usage</h2>
-<p>Only usage inside the selected dates and models. Sessions are grouped per machine and app using hashed source IDs; some sources assign a separate ID to each request.</p>
+<p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>
 <p id="session-coverage" role="status"></p>
+<h3>Session × date · token usage</h3>
+<p>All matching sessions, ordered by total tokens. Includes input, cache and output tokens. Blank cells have no session-day record; historical rollups without session detail are excluded.</p>
+<div id="matrix-legend"></div>
+<div id="session-matrix" tabindex="0" role="region" aria-label="Session title by date token heatmap; scroll for all sessions and dates"></div>
+<p id="matrix-detail" role="status">Hover or focus a colored cell for its title, date and exact token count.</p>
 <label>Sort by <select id="session-sort"><option value="tokens">Total tokens (highest first)</option><option value="cost">Estimated cost (highest first)</option><option value="latest">Latest selected activity</option></select></label>
 <div class="session-scroll" tabindex="0" role="region" aria-label="Session details table, scroll horizontally for all columns">
-<table id="session-table"><thead><tr><th scope="col">Session</th><th scope="col">Selected activity</th><th scope="col">Machine / app</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total tokens</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-body"></tbody></table>
+<table id="session-table"><thead><tr><th scope="col">Conversation</th><th scope="col">Selected activity</th><th scope="col">Machine / app</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total tokens</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-body"></tbody></table>
 </div><p id="session-empty" hidden>No identified sessions match these filters.</p>
 <button id="session-more" hidden>Show 50 more sessions</button>
+<section id="session-detail" class="session-detail" hidden aria-live="polite">
+<div class="session-detail-heading"><div><h3 id="session-detail-title">Session detail</h3><p id="session-detail-meta"></p></div><button id="session-detail-close" type="button">Close detail</button></div>
+<div id="session-detail-summary" class="session-summary" aria-label="Selected session summary"></div>
+<h4>Token components</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Component</th><th scope="col">Tokens</th><th scope="col">Share of session</th></tr></thead><tbody id="session-component-body"></tbody></table></div>
+<h4>By date</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Date</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-date-body"></tbody></table></div>
+<h4>By model</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Model</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-model-body"></tbody></table></div>
+<p>Detail follows the active date and model filters. Cost is the recorded total estimate; the source does not attribute it separately to input, cache, and output.</p>
+</section>
 </section>
 <details class="source"><summary>Sources, freshness & definitions</summary><div id="sources"></div><ul id="caveats"></ul><p>Recorded costs are estimates, not invoices or subscription fees. Zero cost can mean missing pricing. Dates follow each source machine’s local calendar. Incomplete months use available days.</p></details>
 <footer>TokenScope · MIT licensed · This public demo contains no real usage. All interactions run in your browser. Animation respects reduced-motion preferences. Run the Python app locally to collect your own statistics.</footer>

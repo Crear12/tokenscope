@@ -58,6 +58,7 @@ def public_data(folder):
             with path.open(encoding='utf-8', newline='') as stream:
                 for row in csv.DictReader(stream):
                     session_rows.append({k: row[k] for k in ('date', 'host', 'app', 'session_key', 'model', 'cost_usd')} |
+                                        {'session_title': row.get('session_title', '')} |
                                         {k: int(row[k]) for k in ('requests', 'fresh_input_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'output_tokens')} |
                                         {'tokens': int(row['total_tokens'])})
     return {'generated_at': summary['generated_at_utc'], 'rows': rows, 'session_rows': session_rows,

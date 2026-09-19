@@ -66,18 +66,20 @@ def fetch(item):
     name, cfg = item
     database = cfg.get('database', '~/.cc-switch/cc-switch.db')
     roots = [p.strip() for p in cfg.get('codex_session_roots', '~/.codex/sessions;~/.codex/archived_sessions').split(';') if p.strip()]
+    codex_home = cfg.get('codex_home', '~/.codex')
+    claude_projects = cfg.get('claude_projects', '~/.claude/projects')
     if cfg['transport'] == 'local':
-        data = collect(database, roots)
+        data = collect(database, roots, codex_home, claude_projects)
     elif cfg['transport'] == 'ssh':
         # Execute allowlisted reader in memory; no remote installation or database copy.
         code = (ROOT / 'collect.py').read_text() + '\n'
         code = code.replace("if __name__ == '__main__':", 'if False:')
-        code += 'import zlib,base64\nprint(base64.b64encode(zlib.compress(json.dumps(collect(' + repr(database) + ', ' + repr(roots) + ')).encode(), 9)).decode())\n'
-        encoded = base64.b64encode(code.encode()).decode()
+        code += 'import zlib,base64\nprint(base64.b64encode(zlib.compress(json.dumps(collect(' + repr(database) + ', ' + repr(roots) + ', ' + repr(codex_home) + ', ' + repr(claude_projects) + ')).encode(), 9)).decode())\n'
+        encoded = base64.b64encode(zlib.compress(code.encode(), 9)).decode()
         python = cfg['python']
         if any(c in python for c in '\"\r\n'):
             raise ValueError('Invalid interpreter path')
-        command = '"' + python + '" -c "import base64;exec(base64.b64decode(\'' + encoded + '\'))"'
+        command = '"' + python + '" -c "import base64,zlib;exec(zlib.decompress(base64.b64decode(\'' + encoded + '\')))"'
         try:
             result = subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', cfg['host'], command], capture_output=True, text=True, timeout=int(cfg.get('timeout_seconds', '900')))
         except subprocess.TimeoutExpired as error:
@@ -155,6 +157,7 @@ def build(sources, out, render_figures=True):
             if grain == 'request' and r.get('session_key'):
                 st = session_totals[(r['date'], host, app, r['session_key'], model)]
                 st['requests'] += count
+                st['session_title'] = r.get('session_title') or ''
                 st['fresh_input_tokens'] += fresh(r)
                 for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
                     st[field] += r[field]

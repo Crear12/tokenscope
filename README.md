@@ -29,7 +29,8 @@ and which model leads each month—without opening a statistics page on every ma
 | **Daily tokens + cost** | Compare model-colored token bars with a daily estimated-USD line. |
 | **Monthly model leaders** | Read the top model, token share, and that model's monthly cost directly on the chart. |
 | **Focused exploration** | Narrow the date range and select one or several model names. |
-| **Per-session detail** | Toggle a sortable session table; the same date and model filters apply to its tokens and cost. |
+| **Session heatmap** | Explore session titles by date with adaptive jet colors for token usage. |
+| **Session drill-down** | Click a title for token components, requests, cost, and date/model breakdowns. Shared filters apply throughout. |
 | **One or many machines** | Collect locally or read remote statistics through your own private SSH configuration. |
 | **Refresh on your terms** | Choose 5 seconds to 10 minutes in the browser, aligned to the clock. |
 | **Portable reports** | Generate PNG/SVG charts, CSV tables, and JSON/Markdown summaries. |
@@ -89,8 +90,8 @@ it is not an incremental ingestion process. Sync CC-Switch first for fresh impor
 
 ## Per-session usage
 
-Check **Show per-session usage** in the filter bar to reveal the table; uncheck it
-to hide the table without changing your data selection. Sort by tokens, estimated
+Check **Show per-session usage** in the filter bar to reveal the heatmap and table; uncheck it
+to hide them without changing your data selection. Sort the table by tokens, estimated
 cost, or latest selected activity. Large results show 50 sessions at a time.
 
 Each row groups a recorded session ID within one machine and application. Usage is
@@ -100,9 +101,19 @@ not lifetime usage. Model switches remain in the same session, with selected mod
 listed together. Fresh input, cache read/write, output, total tokens, requests and
 estimated USD are shown separately. Activity dates are first/last *selected* days.
 
-Session IDs are SHA-256 hashed before export; the table displays a short reference,
-with the full hash in its tooltip. Hashes are pseudonymous identifiers, not secrets
-or a guarantee of anonymity. No conversation titles or prompts are read for this view.
+Click a conversation title in either the table or heatmap to open its token components,
+requests, recorded cost, and breakdowns by date and model. The heatmap includes all
+matching sessions, uses an adaptive linear jet scale over observed session-day totals,
+and leaves missing records blank. Hover or focus a cell for exact values.
+
+Saved Codex names and Claude Code custom titles are read locally; missing names show
+**Title unavailable**, without generating summaries or substituting message text.
+Optional `codex_home` and `claude_projects` source settings select metadata locations.
+Session IDs are SHA-256 hashed before export and identity includes machine and app,
+so identical titles do not merge. Hashes are pseudonymous, not anonymous.
+**Saved titles can be sensitive:** they appear in your local output and are visible
+to LAN viewers. Never publish your generated output. The public demo uses fictional
+titles and deterministic synthetic statistics only.
 Some sources use request-scoped session IDs. Requests without usable IDs and
 historical rollups cannot be assigned to sessions; their tokens remain in the daily
 charts and are reported as lacking session detail. Old caches require one successful
@@ -156,8 +167,9 @@ Only source files, tests, this README, requirements, the example configuration a
 `.gitignore` belong in Git. Never publish real configuration, databases, generated
 outputs, screenshots of private usage, SSH files, credentials, or session logs.
 The database reader selects usage fields and provider display names, not provider
-settings, credentials or prompts. Aggregates still reveal usage and source display
-names to dashboard viewers; they are not anonymous.
+settings, credentials or prompts. The title reader also reads saved conversation
+names. Aggregates reveal usage, source display names and saved titles to dashboard
+viewers; they are not anonymous.
 
 `.gitignore` is a safeguard, not a secret scanner: review staged files before every
 push. Publish this folder as a fresh repository, not a parent project or private Git
