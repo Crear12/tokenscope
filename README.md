@@ -13,6 +13,10 @@ for Codex, Claude Code, and multi-machine workflows.
 
 </div>
 
+[![TokenScope dashboard showing synthetic daily token usage, estimated costs, and monthly leading models](assets/demo-preview.png)](https://crear12.github.io/tokenscope/)
+
+*Entirely synthetic demo data. Click the snapshot to explore the animated, interactive dashboard.*
+
 ---
 
 ## From scattered usage to a single picture
