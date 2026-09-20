@@ -7,6 +7,36 @@ from update import build
 
 
 class SessionDetails(unittest.TestCase):
+    def test_exact_message_link_and_ambiguous_ids(self):
+        import json
+        from collect import enrich_session_titles
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / 'projects' / 'example'
+            desktop = root / 'desktop'
+            project.mkdir(parents=True); desktop.mkdir()
+            for sid, mids in [('conversation-a', ['response-1', 'response-1', 'shared']), ('conversation-b', ['shared'])]:
+                (project / (sid + '.jsonl')).write_text('\n'.join(json.dumps({
+                    'type':'assistant', 'sessionId':sid, 'message':{'id':mid,'content':'Never export this'}}) for mid in mids))
+            (desktop / 'example.json').write_text(json.dumps({'cliSessionId':'conversation-a','title':'Fictional desktop title'}))
+            (project / 'conversation-b').mkdir()
+            (project / 'conversation-b' / 'custom-title.json').write_text(json.dumps({'customTitle':'Fictional CLI title'}))
+            rows = [row(app_type='claude-desktop',request_id='session:response-1',session_id='proxy-id'),
+                    row(app_type='claude-desktop',request_id='session:shared',session_id='ambiguous'),
+                    row(app_type='claude',request_id='unmatched',session_id='conversation-b'),
+                    row(app_type='codex',request_id='session:response-1',session_id='codex-id')]
+            before = [{k:v for k,v in r.items() if k != 'session_id'} for r in rows]
+            audit = enrich_session_titles(rows, str(root/'codex'), str(root/'projects'), [desktop])
+            self.assertEqual(rows[0]['session_id'], 'conversation-a')
+            self.assertEqual(rows[0]['session_title'], 'Fictional desktop title')
+            self.assertEqual(rows[1]['session_id'], 'ambiguous')
+            self.assertNotIn('session_title', rows[1])
+            self.assertEqual(rows[2]['session_title'], 'Fictional CLI title')
+            self.assertEqual(rows[3]['session_id'], 'codex-id')
+            self.assertEqual(audit['requests_linked_by_message_id'], 1)
+            self.assertEqual(audit['ambiguous_message_id_requests'], 1)
+            self.assertEqual(before, [{k:v for k,v in r.items() if k not in ('session_id','session_title')} for r in rows])
+
     def test_saved_titles_without_prompt_fallback(self):
         import sqlite3
         import json

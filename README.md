@@ -108,6 +108,12 @@ and leaves missing records blank. Hover or focus a cell for exact values.
 
 Saved Codex names and Claude Code custom titles are read locally; missing names show
 **Title unavailable**, without generating summaries or substituting message text.
+Claude title lookup supports inline events, per-session `custom-title.json`, and
+Claude / Claude-3p desktop metadata. When CC-Switch assigns request-scoped session
+IDs, the collector joins `request_id = session:<message.id>` to the Claude log's
+conversation ID. Only unique exact matches are used; ambiguous or missing links
+remain unchanged. No timestamp guessing is used, and token/cost accounting is
+preserved. Message bodies are not exported; only IDs and saved titles are retained.
 Optional `codex_home` and `claude_projects` source settings select metadata locations.
 Session IDs are SHA-256 hashed before export and identity includes machine and app,
 so identical titles do not merge. Hashes are pseudonymous, not anonymous.

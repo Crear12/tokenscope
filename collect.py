@@ -12,7 +12,7 @@ _dll_handle = os.add_dll_directory(str(_dll_dir)) if os.name == 'nt' and _dll_di
 import sqlite3
 
 
-def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claude/projects'):
+def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claude/projects', desktop_roots=None):
     """Read saved conversation names only; never synthesize titles from messages."""
     wanted = {r.get('session_id') for r in rows if r.get('session_id')}
     codex_titles, claude_titles = {}, {}
@@ -44,19 +44,57 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
         finally:
             db.close()
     root = pathlib.Path(claude_projects).expanduser()
+    requests = {r.get('request_id') for r in rows if r['app_type'] in ('claude', 'claude-desktop')}
+    message_sessions = {}
     for path in root.glob('*/*.jsonl'):
-        if path.stem not in wanted:
-            continue
         with path.open(encoding='utf-8') as stream:
             for line in stream:
-                # Ignore message records; only saved title metadata is parsed.
-                if '"custom-title"' not in line:
+                if not line.strip():
                     continue
                 entry = json.loads(line)
+                if entry.get('type') == 'assistant' and isinstance(entry.get('message'), dict):
+                    mid = entry['message'].get('id')
+                    sid = entry.get('sessionId')
+                    if isinstance(mid, str) and isinstance(sid, str) and sid:
+                        key = 'session:' + mid
+                        if key in requests:
+                            message_sessions.setdefault(key, set()).add(sid)
                 if entry.get('type') == 'custom-title' and entry.get('sessionId') == path.stem:
                     title = entry.get('customTitle')
                     if isinstance(title, str) and title.strip():
                         claude_titles[path.stem] = title
+    # Newer CLI title files and desktop title metadata contain no usage accounting.
+    for path in root.glob('*/*/custom-title.json'):
+        title = json.loads(path.read_text(encoding='utf-8')).get('customTitle')
+        if isinstance(title, str) and title.strip():
+            claude_titles[path.parent.name] = title
+    if desktop_roots is None:
+        support = pathlib.Path(os.environ.get('APPDATA', str(pathlib.Path.home() / 'Library/Application Support')))
+        desktop_roots = [support / app / 'claude-code-sessions' for app in ('Claude-3p', 'Claude')]
+    desktop_titles = {}
+    for directory in desktop_roots:
+        for path in pathlib.Path(directory).expanduser().glob('**/*.json'):
+            entry = json.loads(path.read_text(encoding='utf-8'))
+            if not isinstance(entry, dict):
+                continue
+            sid, title = entry.get('cliSessionId'), entry.get('title')
+            if isinstance(sid, str) and isinstance(title, str) and title.strip():
+                desktop_titles.setdefault(sid, set()).add(title)
+    for sid, titles in desktop_titles.items():
+        if len(titles) == 1:
+            claude_titles[sid] = next(iter(titles))
+    linked = ambiguous = 0
+    for row in rows:
+        if row['app_type'] not in ('claude', 'claude-desktop'):
+            continue
+        candidates = message_sessions.get(row.get('request_id'), set())
+        if len(candidates) > 1:
+            ambiguous += 1
+        elif len(candidates) == 1:
+            sid = next(iter(candidates))
+            if row.get('session_id') != sid:
+                row['session_id'] = sid
+                linked += 1
     matched = 0
     for row in rows:
         titles = codex_titles if row['app_type'] == 'codex' else claude_titles if row['app_type'] in ('claude', 'claude-desktop') else {}
@@ -64,7 +102,8 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
         if title:
             row['session_title'] = title
             matched += 1
-    return {'requests_with_saved_title': matched}
+    return {'requests_with_saved_title': matched, 'requests_linked_by_message_id': linked,
+            'ambiguous_message_id_requests': ambiguous}
 
 
 def enrich_session_providers(rows, roots):
