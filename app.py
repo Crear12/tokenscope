@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 ASSETS = {'/': ('web.html', 'text/html'), '/web.js': ('web.js', 'text/javascript'),
           '/session_usage.js': ('session_usage.js', 'text/javascript'),
+          '/i18n.js': ('i18n.js', 'text/javascript'),
           '/web.css': ('web.css', 'text/css')}
 
 

@@ -49,6 +49,7 @@ def build():
     page = page.replace('<title>Token usage</title>', '<title>TokenScope · Synthetic Demo</title>')
     page = page.replace('href="/web.css"', 'href="web.css"')
     page = page.replace('src="/session_usage.js"', 'src="session_usage.js"')
+    page = page.replace('src="/i18n.js"', 'src="i18n.js"')
     page = page.replace('<script defer src="/web.js"></script>',
                         '<link rel="stylesheet" href="demo.css"><script defer src="demo-data.js"></script><script defer src="web.js"></script>')
     page = page.replace('<body><main>', '<body><main><nav class="demo-nav"><a href="https://github.com/Crear12/tokenscope">◈ TokenScope</a><span class="demo-badge">SYNTHETIC DEMO</span><a href="https://github.com/Crear12/tokenscope#quick-start">Get the code ↗</a></nav>')
@@ -60,7 +61,7 @@ def build():
                         'TokenScope · MIT licensed · This public demo contains no real usage. All interactions run in your browser. Animation respects reduced-motion preferences. Run the Python app locally to collect your own statistics.')
     (destination / 'index.html').write_text(page)
     (destination / 'demo-data.js').write_text('window.TOKEN_SCOPE_DEMO = ' + json.dumps(synthetic_data(), separators=(',', ':')) + ';\n')
-    for name in ('web.js', 'web.css', 'session_usage.js'):
+    for name in ('web.js', 'web.css', 'session_usage.js', 'i18n.js'):
         shutil.copyfile(ROOT / name, destination / name)
     (destination / '.nojekyll').touch()
     print('Built docs/ from synthetic fixtures only.')

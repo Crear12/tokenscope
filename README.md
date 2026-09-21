@@ -42,6 +42,11 @@ cloud account, or permanently running service. Start one command; stop with Ctrl
 
 ## Try it without connecting anything
 
+Use **语言 / Language** at the top of the webpage to switch between English and
+Simplified Chinese. Your browser remembers the selection; date/model filters stay
+unchanged. Share a Chinese view with `?lang=zh-CN` or an English view with `?lang=en`.
+Model names, source names, conversation titles and recorded USD amounts are preserved.
+
 The [interactive demo](https://crear12.github.io/tokenscope/) uses **entirely synthetic data**: 90 days,
 three fictional models, and two fictional sources. It has animated chart reveals,
 a replay button, working date/model filters, and reduced-motion support. It never

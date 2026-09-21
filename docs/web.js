@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const money = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
-const compact = n => new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(n);
+const money = n => new Intl.NumberFormat(uiLocale(),{style:'currency',currency:'USD'}).format(n);
+const compact = n => new Intl.NumberFormat(uiLocale(),{notation:'compact',maximumFractionDigits:1}).format(n);
 let data=null, version=-1, selected=new Set(), known=new Set(), csrf='', pending=false, status=null;
 const colorMap = new Map();
 function color(name){
@@ -19,29 +19,29 @@ function openSession(key){
 }
 function renderSessionMatrix(rows){
   const root=$('session-matrix'),legend=$('matrix-legend');root.replaceChildren();legend.replaceChildren();
-  $('matrix-detail').textContent='Hover or focus a colored cell for its title, date and exact token count. Click a title or cell to open its session detail.';
+  $('matrix-detail').textContent=t('Hover or focus a colored cell for its title, date and exact token count. Click a title or cell to open its session detail.');
   const matrix=sessionMatrix(rows,$('from').value,$('through').value);
-  if(!matrix.sessions.length){root.append(element('p','No session detail matches these filters.'));return;}
+  if(!matrix.sessions.length){root.append(element('p',t('No session detail matches these filters.')));return;}
   const cell=matrix.dates.length<=5?110:20,labelWidth=280,width=Math.max(matrix.dates.length*cell,root.clientWidth-labelWidth,110),dayWidth=width/matrix.dates.length;
   const bar=element('span',undefined,'matrix-colorbar');
   bar.style.background=`linear-gradient(to right, ${Array.from({length:17},(_,i)=>jetColor(i,0,16)).join(',')})`;
-  legend.append(element('span',`${matrix.min.toLocaleString()} tokens`),bar,element('span',`${matrix.max.toLocaleString()} tokens`),element('span',`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString()} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`));
-  if(matrix.min===matrix.max)legend.append(element('span','All observed cells are equal (midpoint color).'));
+  legend.append(element('span',`${matrix.min.toLocaleString(uiLocale())} tokens`),bar,element('span',`${matrix.max.toLocaleString(uiLocale())} tokens`),element('span',bilingual(`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString(uiLocale())} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`,`Jet · 有记录单元格的自适应线性色阶 · ${matrix.sessions.length.toLocaleString(uiLocale())} 个会话 × ${matrix.dates.length} 天`)));
+  if(matrix.min===matrix.max)legend.append(element('span',t('All observed cells are equal (midpoint color).')));
   const grid=element('div',undefined,'matrix-grid');grid.style.width=(width+labelWidth)+'px';
-  const corner=element('div','Session title / Date','matrix-label matrix-corner');grid.append(corner);
-  const header=svg('svg',{width,height:40,role:'img','aria-label':'Date axis'});header.classList.add('matrix-header');
+  const corner=element('div',t('Session title / Date'),'matrix-label matrix-corner');grid.append(corner);
+  const header=svg('svg',{width,height:40,role:'img','aria-label':t('Date axis')});header.classList.add('matrix-header');
   const tickStep=Math.ceil(100/dayWidth);
   matrix.dates.forEach((date,i)=>{if(i===0||i===matrix.dates.length-1||(i%tickStep===0&&i<matrix.dates.length-tickStep))header.append(svg('text',{x:i===0?4:i===matrix.dates.length-1?width-4:i*dayWidth+dayWidth/2,y:26,'font-size':12,'text-anchor':i===0?'start':i===matrix.dates.length-1?'end':'middle',fill:'#445466'},date));});
   grid.append(header);
   const positions=new Map(matrix.dates.map((date,i)=>[date,i]));
   for(const s of matrix.sessions){
-    const name=s.title||'Title unavailable',full=`${name} · ${s.host} / ${s.app}`;
-    const label=element('div',undefined,'matrix-label'),open=element('button',name,'matrix-open');open.type='button';open.title=`Open ${full}`;open.setAttribute('aria-label',`Open session detail: ${full}`);open.onclick=()=>openSession(s.key);label.append(open);grid.append(label);
+    const name=s.title||t('Title unavailable'),full=`${name} · ${s.host} / ${s.app}`;
+    const label=element('div',undefined,'matrix-label'),open=element('button',name,'matrix-open');open.type='button';open.title=bilingual(`Open ${full}`,`打开 ${full}`);open.setAttribute('aria-label',bilingual(`Open session detail: ${full}`,`打开会话详情：${full}`));open.onclick=()=>openSession(s.key);label.append(open);grid.append(label);
     const row=svg('svg',{width,height:28,role:'group','aria-label':full});row.classList.add('matrix-row');
     for(const [date,tokens]of s.days){
-      const text=`${full} · ${date} · ${tokens.toLocaleString()} tokens`;
+      const text=`${full} · ${date} · ${tokens.toLocaleString(uiLocale())} tokens`;
       const rect=svg('rect',{x:positions.get(date)*dayWidth,y:1,width:dayWidth,height:26,fill:jetColor(tokens,matrix.min,matrix.max),tabindex:0,role:'img','aria-label':text,'data-tokens':tokens});
-      const show=()=>{$('matrix-detail').textContent=text+' Click to open this session detail.';};rect.addEventListener('mouseenter',show);rect.addEventListener('focus',show);rect.addEventListener('click',()=>openSession(s.key));rect.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openSession(s.key);}});
+      const show=()=>{$('matrix-detail').textContent=text+bilingual(' Click to open this session detail.',' 点击打开会话详情。');};rect.addEventListener('mouseenter',show);rect.addEventListener('focus',show);rect.addEventListener('click',()=>openSession(s.key));rect.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openSession(s.key);}});
       row.append(rect);
     }
     grid.append(row);
@@ -54,21 +54,21 @@ function renderSessionDetail(rows, groups){
   if(!activeSessionKey){panel.hidden=true;return;}
   const detail=sessionDetails(rows,activeSessionKey);
   if(!detail.session || !groups.some(s=>sessionIdentity(s)===activeSessionKey)){activeSessionKey=null;panel.hidden=true;return;}
-  const s=detail.session,title=s.title||'Title unavailable';panel.hidden=false;
+  const s=detail.session,title=s.title||t('Title unavailable');panel.hidden=false;
   $('session-detail-title').textContent=title;
   $('session-detail-meta').textContent=`${s.host} / ${s.app} · ${s.first===s.last?s.first:`${s.first} → ${s.last}`} · ${s.models.join(', ')}`;
   $('session-detail-summary').replaceChildren();
-  for(const [label,value] of [['Total tokens',s.tokens.toLocaleString()],['Recorded estimated cost',money(s.cost)],['Requests',s.requests.toLocaleString()],['Fresh input',s.fresh_input_tokens.toLocaleString()],['Cache read',s.cache_read_tokens.toLocaleString()],['Cache write',s.cache_creation_tokens.toLocaleString()],['Output',s.output_tokens.toLocaleString()]]){
+  for(const [label,value] of [[t('Total tokens'),s.tokens.toLocaleString(uiLocale())],[t('Recorded estimated cost'),money(s.cost)],[t('Requests'),s.requests.toLocaleString(uiLocale())],[t('Fresh input'),s.fresh_input_tokens.toLocaleString(uiLocale())],[t('Cache read'),s.cache_read_tokens.toLocaleString(uiLocale())],[t('Cache write'),s.cache_creation_tokens.toLocaleString(uiLocale())],[t('Output'),s.output_tokens.toLocaleString(uiLocale())]]){
     const card=element('div');card.append(element('span',label),element('strong',value));$('session-detail-summary').append(card);
   }
   const componentBody=$('session-component-body');componentBody.replaceChildren();
-  for(const [label,field] of [['Fresh input','fresh_input_tokens'],['Cache read','cache_read_tokens'],['Cache write','cache_creation_tokens'],['Output','output_tokens']]){
-    const tokens=s[field],share=s.tokens?100*tokens/s.tokens:0;appendCells(componentBody,[label,tokens.toLocaleString(),`${share.toFixed(1)}%`]);
+  for(const [label,field] of [[t('Fresh input'),'fresh_input_tokens'],[t('Cache read'),'cache_read_tokens'],[t('Cache write'),'cache_creation_tokens'],[t('Output'),'output_tokens']]){
+    const tokens=s[field],share=s.tokens?100*tokens/s.tokens:0;appendCells(componentBody,[label,tokens.toLocaleString(uiLocale()),`${share.toFixed(1)}%`]);
   }
   const dateBody=$('session-date-body');dateBody.replaceChildren();
-  for(const day of detail.daily)appendCells(dateBody,[day.value,day.models.join(', '),...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>day[field].toLocaleString()),money(day.cost)]);
+  for(const day of detail.daily)appendCells(dateBody,[day.value,day.models.join(', '),...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>day[field].toLocaleString(uiLocale())),money(day.cost)]);
   const modelBody=$('session-model-body');modelBody.replaceChildren();
-  for(const model of detail.models)appendCells(modelBody,[model.value,...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>model[field].toLocaleString()),money(model.cost)]);
+  for(const model of detail.models)appendCells(modelBody,[model.value,...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>model[field].toLocaleString(uiLocale())),money(model.cost)]);
 }
 function renderSessions(resetLimit=true){
   if(resetLimit)sessionLimit=50;
@@ -78,7 +78,7 @@ function renderSessions(resetLimit=true){
   if(!Array.isArray(data?.session_rows)){
     renderSessionMatrix([]);
     activeSessionKey=null;renderSessionDetail([],[]);
-    $('session-coverage').textContent='Session detail is unavailable in this snapshot. Refresh collection with the updated collector.';
+    $('session-coverage').textContent=t('Session detail is unavailable in this snapshot. Refresh collection with the updated collector.');
     $('session-table').hidden=true;$('session-empty').hidden=true;return;
   }
   const groups=summarizeSessions(filtered(data.session_rows));
@@ -87,12 +87,12 @@ function renderSessions(resetLimit=true){
   groups.sort((a,b)=>(mode==='latest'?b.last.localeCompare(a.last):b[mode]-a[mode])||a.session_key.localeCompare(b.session_key)||a.host.localeCompare(b.host)||a.app.localeCompare(b.app));
   const totals=filtered(),allTokens=totals.reduce((s,r)=>s+r.tokens,0),allRequests=totals.reduce((s,r)=>s+r.requests,0);
   const tokens=groups.reduce((s,r)=>s+r.tokens,0),requests=groups.reduce((s,r)=>s+r.requests,0),cost=groups.reduce((s,r)=>s+r.cost,0);
-  $('session-coverage').textContent=`${groups.length.toLocaleString()} identified sessions · ${tokens.toLocaleString()} tokens · ${money(cost)} est. · ${requests.toLocaleString()} requests. ${Math.max(0,allTokens-tokens).toLocaleString()} tokens / ${Math.max(0,allRequests-requests).toLocaleString()} requests lack session detail (including historical rollups). Showing ${Math.min(sessionLimit,groups.length)} of ${groups.length.toLocaleString()} sessions.`;
+  $('session-coverage').textContent=bilingual(`${groups.length.toLocaleString(uiLocale())} identified sessions · ${tokens.toLocaleString(uiLocale())} tokens · ${money(cost)} est. · ${requests.toLocaleString(uiLocale())} requests. ${Math.max(0,allTokens-tokens).toLocaleString(uiLocale())} tokens / ${Math.max(0,allRequests-requests).toLocaleString(uiLocale())} requests lack session detail (including historical rollups). Showing ${Math.min(sessionLimit,groups.length)} of ${groups.length.toLocaleString(uiLocale())} sessions.`,`已识别 ${groups.length.toLocaleString(uiLocale())} 个会话 · ${tokens.toLocaleString(uiLocale())} Token · ${money(cost)}（预估）· ${requests.toLocaleString(uiLocale())} 次请求。另有 ${Math.max(0,allTokens-tokens).toLocaleString(uiLocale())} Token / ${Math.max(0,allRequests-requests).toLocaleString(uiLocale())} 次请求缺少会话明细（含历史汇总）。表格显示 ${Math.min(sessionLimit,groups.length)} / ${groups.length.toLocaleString(uiLocale())} 个会话。`);
   $('session-table').hidden=!groups.length;$('session-empty').hidden=groups.length>0;
   for(const s of groups.slice(0,sessionLimit)){
-    const key=sessionIdentity(s),tr=element('tr');if(key===activeSessionKey)tr.className='session-active';const title=element('td'),open=element('button',s.title||'Title unavailable','session-open');open.type='button';open.title=s.title||'No saved conversation title matches this source record.';open.setAttribute('aria-expanded',String(key===activeSessionKey));open.onclick=()=>openSession(key);title.append(open);tr.append(title);
+    const key=sessionIdentity(s),tr=element('tr');if(key===activeSessionKey)tr.className='session-active';const title=element('td'),open=element('button',s.title||t('Title unavailable'),'session-open');open.type='button';open.title=s.title||t('No saved conversation title matches this source record.');open.setAttribute('aria-expanded',String(key===activeSessionKey));open.onclick=()=>openSession(key);title.append(open);tr.append(title);
     const values=[s.first===s.last?s.first:`${s.first} → ${s.last}`,`${s.host} / ${s.app}`,s.models.join(', '),
-      ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString()),money(s.cost)];
+      ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString(uiLocale())),money(s.cost)];
     for(const value of values)tr.append(element('td',value));$('session-body').append(tr);
   }
   $('session-more').hidden=groups.length<=sessionLimit;
@@ -108,15 +108,15 @@ function modelControls(){
   }
 }
 function render(){
-  const rows=filtered();$('selection').textContent=`Models · ${selected.size} of ${known.size}`;
+  const rows=filtered();$('selection').textContent=bilingual(`Models · ${selected.size} of ${known.size}`,`模型 · 已选 ${selected.size} / ${known.size}`);
   renderSessions();
   $('tokens').textContent=compact(rows.reduce((a,r)=>a+r.tokens,0));
-  $('tokens').title=rows.reduce((a,r)=>a+r.tokens,0).toLocaleString('en-US');
+  $('tokens').title=rows.reduce((a,r)=>a+r.tokens,0).toLocaleString(uiLocale());
   $('cost').textContent=money(rows.reduce((a,r)=>a+Number(r.cost_usd),0));
-  $('requests').textContent=rows.reduce((a,r)=>a+r.requests,0).toLocaleString('en-US');
+  $('requests').textContent=rows.reduce((a,r)=>a+r.requests,0).toLocaleString(uiLocale());
   $('count').textContent=new Set(rows.map(r=>r.model)).size;
   $('empty').hidden=rows.length>0;$('chart-wrap').hidden=!rows.length;$('leaders').replaceChildren();$('tooltip').hidden=true;
-  if(!rows.length){$('leaders').append(element('p','No usage matches these filters.'));return;}
+  if(!rows.length){$('leaders').append(element('p',t('No usage matches these filters.')));return;}
   const days=new Map(),months=new Map();
   for(const r of rows){
     if(!days.has(r.date))days.set(r.date,{date:r.date,tokens:0,cost:0,models:new Map()});
@@ -131,7 +131,7 @@ function render(){
     for(const [name,r]of ms)if(r.tokens===max){
       leaders.push({month,name,cost:r.cost,share:100*r.tokens/total});
       const box=element('article',undefined,'leader');box.style.borderTopColor=color(name);
-      box.append(element('span',month),element('strong',name),element('b',money(r.cost)+' est.'),element('span',`${(100*r.tokens/total).toFixed(1)}% of selected month tokens`));$('leaders').append(box);
+      box.append(element('span',month),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',bilingual(`${(100*r.tokens/total).toFixed(1)}% of selected month tokens`,`占所选月份 Token 的 ${(100*r.tokens/total).toFixed(1)}%`)));$('leaders').append(box);
     }
   }
   draw([...days.values()].sort((a,b)=>a.date.localeCompare(b.date)),leaders);
@@ -145,7 +145,7 @@ function draw(days,leaders){
     const monthDays=days.filter(d=>d.date.startsWith(leader.month));
     const center=(x(monthDays[0].date)+x(monthDays.at(-1).date))/2;
     const nameLines=leader.name.match(/.{1,25}/g)||[leader.name];
-    const lines=[leader.month,...nameLines,money(leader.cost)+' est.',leader.share.toFixed(1)+'% of month tokens'];
+    const lines=[leader.month,...nameLines,money(leader.cost)+bilingual(' est.','（预估）'),bilingual(leader.share.toFixed(1)+'% of month tokens','占当月 Token 的 '+leader.share.toFixed(1)+'%')];
     const width=Math.max(150,Math.max(...lines.map(s=>s.length))*6.6+18);
     const left=Math.max(L,Math.min(W-R-width,center-width/2));
     let lane=laneEnds.findIndex(end=>end+10<=left);
@@ -169,11 +169,11 @@ function draw(days,leaders){
   for(let i=0;i<=4;i++){let yy=H-B-i/4*(H-T-B);
     chart.append(svg('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'#e2e7ee'}),svg('text',{x:L-10,y:yy+4,'text-anchor':'end',fill:'#627181','font-size':12},compact(ymax*i/4)),svg('text',{x:W-R+10,y:yy+4,fill:'#627181','font-size':12},money(cmax*i/4)));
   }
-  chart.append(svg('text',{x:L,y:T-12,fill:'#627181','font-size':12},'Tokens'),svg('text',{x:W-R,y:T-12,'text-anchor':'end',fill:'#627181','font-size':12},'Estimated USD'));
+  chart.append(svg('text',{x:L,y:T-12,fill:'#627181','font-size':12},t('Tokens')),svg('text',{x:W-R,y:T-12,'text-anchor':'end',fill:'#627181','font-size':12},t('Estimated USD')));
   const width=Math.max(.6,Math.min(42,(W-L-R)/(span/86400000)*.8));
   for(const d of days){let base=0;for(const [name,tokens]of [...d.models].sort()){
-    const bar=svg('rect',{x:x(d.date)-width/2,y:y(base+tokens),width,height:tokens/ymax*(H-T-B),fill:color(name),opacity:.7,tabindex:0,'aria-label':`${d.date}, ${name}: ${tokens.toLocaleString()} tokens`});
-    const tip=`${d.date}\n${name}\n${tokens.toLocaleString()} tokens\nDay total: ${d.tokens.toLocaleString()} tokens · ${money(d.cost)} est.`;
+    const bar=svg('rect',{x:x(d.date)-width/2,y:y(base+tokens),width,height:tokens/ymax*(H-T-B),fill:color(name),opacity:.7,tabindex:0,'aria-label':`${d.date}, ${name}: ${tokens.toLocaleString(uiLocale())} tokens`});
+    const tip=bilingual(`${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} tokens\nDay total: ${d.tokens.toLocaleString(uiLocale())} tokens · ${money(d.cost)} est.`,`${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} Token\n当日合计：${d.tokens.toLocaleString(uiLocale())} Token · ${money(d.cost)}（预估）`);
     const show=()=>{const bounds=bar.getBoundingClientRect(),card=$('tooltip').parentElement.getBoundingClientRect();$('tooltip').textContent=tip;$('tooltip').hidden=false;$('tooltip').style.left=Math.max(5,Math.min(bounds.left-card.left,card.width-335))+'px';$('tooltip').style.top=Math.max(45,bounds.top-card.top-100)+'px';};
     bar.addEventListener('mouseenter',show);bar.addEventListener('focus',show);bar.addEventListener('mouseleave',()=>$('tooltip').hidden=true);bar.addEventListener('blur',()=>$('tooltip').hidden=true);chart.append(bar);base+=tokens;
   }}
@@ -190,20 +190,20 @@ function installData(next){
   if(!next)return;const allSelected=selected.size===known.size;data=next;
   const names=new Set(data.rows.map(r=>r.model));selected=allSelected?new Set(names):new Set([...selected].filter(m=>names.has(m)));known=names;
   const dates=data.rows.map(r=>r.date).sort();for(const id of ['from','through']){$(id).min=dates[0]||'';$(id).max=dates.at(-1)||'';}
-  $('freshness').textContent='Last successful collection: '+new Date(data.generated_at).toLocaleString();
-  $('sources').replaceChildren();for(const [name,source]of Object.entries(data.sources))$('sources').append(element('p',`${name} · ${new Date(source.collected_at).toLocaleString()} · ${source.timezone}`));
-  $('caveats').replaceChildren(...data.caveats.map(s=>element('li',s)));modelControls();render();
+  $('freshness').textContent=t('Last successful collection: ')+new Date(data.generated_at).toLocaleString(uiLocale());
+  $('sources').replaceChildren();for(const [name,source]of Object.entries(data.sources))$('sources').append(element('p',`${name} · ${new Date(source.collected_at).toLocaleString(uiLocale())} · ${source.timezone}`));
+  $('caveats').replaceChildren(...data.caveats.map(s=>element('li',t(s))));modelControls();render();
 }
-async function request(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Usage-CSRF':csrf},body:JSON.stringify(body)});const value=await r.json();if(!r.ok)throw Error(value.error||'Request failed');return value;}
+async function request(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Usage-CSRF':csrf},body:JSON.stringify(body)});const value=await r.json();if(!r.ok)throw Error(value.error||t('Request failed'));return value;}
 async function poll(){
   if(pending)return;pending=true;
   try{status=await request('/api/status');csrf=status.csrf;
     if(document.activeElement!==$('interval'))$('interval').value=status.interval;
     $('refresh').disabled=status.refreshing;
     $('status').className=status.error?'error':'';
-    $('status').textContent=status.error||(status.refreshing?'Collecting from configured machines… Previous results remain visible.':`Next refresh: ${new Date(status.next_run*1000).toLocaleTimeString()} · host timezone ${status.timezone} · every ${status.interval}s`);
-    if(version!==status.version){const next=await request('/api/data');installData(next);version=status.version;if(!next)$('freshness').textContent='No successful collection yet.';}
-  }catch(e){$('status').className='error';$('status').textContent='Server unavailable. Showing last loaded results. '+e.message;}finally{pending=false;}
+    $('status').textContent=status.error||(status.refreshing?t('Collecting from configured machines… Previous results remain visible.'):bilingual(`Next refresh: ${new Date(status.next_run*1000).toLocaleTimeString(uiLocale())} · host timezone ${status.timezone} · every ${status.interval}s`,`下次刷新：${new Date(status.next_run*1000).toLocaleTimeString(uiLocale())} · 主机时区 ${status.timezone} · 每 ${status.interval} 秒`));
+    if(version!==status.version){const next=await request('/api/data');installData(next);version=status.version;if(!next)$('freshness').textContent=t('No successful collection yet.');}
+  }catch(e){$('status').className='error';$('status').textContent=t('Server unavailable. Showing last loaded results. ')+e.message;}finally{pending=false;}
 }
 for(const id of ['from','through'])$(id).addEventListener('change',render);
 $('search').addEventListener('input',modelControls);
@@ -211,17 +211,35 @@ $('all').onclick=()=>{selected=new Set(known);modelControls();render();};$('none
 $('reset').onclick=()=>{$('from').value='';$('through').value='';$('search').value='';selected=new Set(known);modelControls();render();};
 async function action(path,body){try{await request(path,body);await poll();}catch(e){$('status').textContent=e.message;$('status').className='error';}}
 $('refresh').onclick=()=>action('/api/refresh',{});
-$('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isInteger(seconds)||seconds<5||seconds>600){$('status').textContent='Choose an integer from 5 to 600 seconds.';return;}action('/api/interval',{seconds});};
+$('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isInteger(seconds)||seconds<5||seconds>600){$('status').textContent=t('Choose an integer from 5 to 600 seconds.');return;}action('/api/interval',{seconds});};
 new ResizeObserver(()=>{if(data)render();}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};
 $('session-detail-close').onclick=()=>{activeSessionKey=null;renderSessions(false);};
+
+const applyStaticLanguage = staticTranslations(document.body);
+applyStaticLanguage();
+$('language').value=language;
+$('language').addEventListener('change',()=>{
+  language=$('language').value;
+  try { localStorage.setItem('tokenscope-language',language); }
+  catch(error) { console.warn('Language preference could not be saved:',error.name); }
+  const url=new URL(location.href);url.searchParams.set('lang',language);history.replaceState(null,'',url);
+  applyStaticLanguage();
+  if(data)installData(data);
+  if(window.TOKEN_SCOPE_DEMO)demoStatus();else poll();
+});
+function demoStatus(){
+  $('freshness').textContent=t('Interactive demo · entirely synthetic data · January–March 2026');
+  $('status').textContent=t('No database, account, SSH connection, or live collection. All models, tokens and costs below are fictional.');
+}
+
 if(window.TOKEN_SCOPE_DEMO){
   installData(window.TOKEN_SCOPE_DEMO);
-  $('freshness').textContent='Interactive demo · entirely synthetic data · January–March 2026';
-  $('status').textContent='No database, account, SSH connection, or live collection. All models, tokens and costs below are fictional.';
-  $('replay').onclick=()=>{render();$('status').textContent='Replaying the chart reveal. Values are unchanged; this is not live usage.';};
+  $('freshness').textContent=t('Interactive demo · entirely synthetic data · January–March 2026');
+  $('status').textContent=t('No database, account, SSH connection, or live collection. All models, tokens and costs below are fictional.');
+  $('replay').onclick=()=>{render();$('status').textContent=t('Replaying the chart reveal. Values are unchanged; this is not live usage.');};
 }else{
   poll();setInterval(poll,2000);
 }
