@@ -2,6 +2,8 @@
 
 # ◈ TokenScope
 
+**English** | [简体中文](README.zh-CN.md)
+
 ### Your models. Your machines. One clear view.
 
 A lightweight, local-first **CC-Switch usage & cost dashboard**<br>
