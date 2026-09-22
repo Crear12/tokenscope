@@ -1,4 +1,14 @@
 'use strict';
+function leaderPeriod(from, through) {
+  if (!from && !through) return {unit:'month', monthly:true, label:''};
+  const days = from && through ? (Date.parse(through+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000+1 : null;
+  let unit=days===1?'day':days===7?'week':'range';
+  if (from && through && from.slice(0,7)===through.slice(0,7) && from.endsWith('-01')) {
+    const next = new Date(Date.parse(through+'T00:00:00Z')+86400000).toISOString().slice(0,10);
+    if (next.endsWith('-01')) unit='month';
+  }
+  return {unit,monthly:false,label:unit==='day'?from:unit==='month'?from.slice(0,7):`${from||'…'} → ${through||'…'}`};
+}
 function modelsInDateRange(rows, from, through) {
   return new Set(rows.filter(r => (!from || r.date >= from) && (!through || r.date <= through)).map(r => r.model));
 }
@@ -111,4 +121,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};
+if (typeof module !== 'undefined') module.exports = {leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

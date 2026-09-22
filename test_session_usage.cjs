@@ -1,4 +1,16 @@
 const assert = require('node:assert/strict');
+const {leaderPeriod} = require('./session_usage.js');
+assert.equal(leaderPeriod('2026-09-22','2026-09-22').unit,'day');
+assert.equal(leaderPeriod('2026-09-16','2026-09-22').unit,'week');
+assert.equal(leaderPeriod('2026-08-29','2026-09-04').unit,'week');
+assert.equal(leaderPeriod('2026-08-29','2026-09-04').monthly,false);
+assert.equal(leaderPeriod('2026-08-29','2026-09-04').label,'2026-08-29 → 2026-09-04');
+assert.equal(leaderPeriod('2026-09-01','2026-09-30').unit,'month');
+assert.equal(leaderPeriod('2024-02-01','2024-02-29').unit,'month');
+assert.equal(leaderPeriod('2026-09-01','2026-09-15').unit,'range');
+assert.equal(leaderPeriod('2026-09-01','').unit,'range');
+assert.equal(leaderPeriod('','2026-09-22').unit,'range');
+assert.equal(leaderPeriod('','').monthly,true);
 const {temporalColor} = require('./session_usage.js');
 assert.equal(temporalColor(0,0,100,'viridis'),'rgb(68, 1, 84)');
 assert.equal(temporalColor(100,0,100,'viridis'),'rgb(253, 231, 37)');

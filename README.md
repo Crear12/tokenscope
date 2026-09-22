@@ -29,7 +29,7 @@ and which model leads each month—without opening a statistics page on every ma
 | See it | Do it |
 | :--- | :--- |
 | **Daily tokens + cost** | Compare model-colored token bars with a daily estimated-USD line. |
-| **Monthly model leaders** | Read the top model, token share, and that model's monthly cost directly on the chart. |
+| **Period-aware model leaders** | Read the top model, token share, and its cost for a day, seven-day week, full month, or custom range directly on the chart. |
 | **Focused exploration** | Narrow the date range and select one or several model names. |
 | **Session heatmap** | Explore session titles by date with adaptive jet colors for token usage. |
 | **Session drill-down** | Click a title for token components, requests, cost, and date/model breakdowns. Shared filters apply throughout. |
@@ -87,8 +87,11 @@ to the Internet. Use `--host 127.0.0.1` for local-only access.
 The server refreshes immediately and then on local clock boundaries. The webpage
 accepts intervals from 5 to 600 seconds; 300 means :00, :05, :10, etc. Busy refreshes
 skip boundaries rather than overlap. Collection continues until Ctrl+C even if the
-browser closes. Filters are local to each browser. Monthly leaders and their costs
-are recomputed for the selected dates and models, including partial months and ties.
+browser closes. Filters are local to each browser. Leaders and their costs use the
+selected dates and models, including ties. Single-day and seven-day selections use
+day and week totals; full calendar months use month totals. Other explicit ranges
+use one selected-range total, even across month boundaries. With no date bounds,
+the dashboard shows one leader per month.
 
 The dashboard atomically overwrites `output/web.json`, retaining one last-successful
 statistics snapshot per configured machine alongside its display data. If a machine

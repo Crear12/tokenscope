@@ -130,8 +130,9 @@ function modelControls(){
   }
 }
 function render(resetLimit=true){
-  const singleDay=Boolean($('from').value && $('from').value===$('through').value);
-  $('leaders-title').textContent=bilingual(singleDay?'Daily leading model':'Monthly leading model',singleDay?'当日领先模型':'月度领先模型');
+  const period=leaderPeriod($('from').value,$('through').value);
+  const titles={day:'Daily leading model',week:'Weekly leading model',month:'Monthly leading model',range:'Selected-range leading model'};
+  $('leaders-title').textContent=bilingual(titles[period.unit],{day:'当日领先模型',week:'所选7天领先模型',month:'月度领先模型',range:'所选时段领先模型'}[period.unit]);
   const rows=filtered(), available=availableModels(), selectedCount=[...available].filter(model=>selected.has(model)).length;
   $('selection').textContent=bilingual(`Models · ${selectedCount} of ${available.size}`,`模型 · 已选 ${selectedCount} / ${available.size}`);
   renderSessions(resetLimit);
@@ -146,7 +147,7 @@ function render(resetLimit=true){
   for(const r of rows){
     if(!days.has(r.date))days.set(r.date,{date:r.date,tokens:0,cost:0,models:new Map()});
     const d=days.get(r.date);d.tokens+=r.tokens;d.cost+=Number(r.cost_usd);d.models.set(r.model,(d.models.get(r.model)||0)+r.tokens);
-    const month=r.date.slice(0,7);if(!months.has(month))months.set(month,new Map());const ms=months.get(month);
+    const month=period.monthly?r.date.slice(0,7):'';if(!months.has(month))months.set(month,new Map());const ms=months.get(month);
     const m=ms.get(r.model)||{tokens:0,cost:0};m.tokens+=r.tokens;m.cost+=Number(r.cost_usd);ms.set(r.model,m);
   }
   const leaders=[];
@@ -154,12 +155,17 @@ function render(resetLimit=true){
     const total=[...ms.values()].reduce((s,r)=>s+r.tokens,0);const max=Math.max(...[...ms.values()].map(r=>r.tokens));
     if(!total)continue;
     for(const [name,r]of ms)if(r.tokens===max){
-      leaders.push({month,label:singleDay?$('from').value:month,singleDay,name,cost:r.cost,share:100*r.tokens/total});
+      const leader={month,label:period.monthly?month:period.label,unit:period.unit,name,cost:r.cost,share:100*r.tokens/total};
+      leaders.push(leader);
       const box=element('article',undefined,'leader');box.style.borderTopColor=color(name);
-      box.append(element('span',singleDay?$('from').value:month),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',bilingual(`${(100*r.tokens/total).toFixed(1)}% of ${singleDay?'day':'selected month'} tokens`,`占所选${singleDay?'当日':'月份'} Token 的 ${(100*r.tokens/total).toFixed(1)}%`)));$('leaders').append(box);
+      box.append(element('span',leader.label),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',leaderShare(leader)));$('leaders').append(box);
     }
   }
   draw([...days.values()].sort((a,b)=>a.date.localeCompare(b.date)),leaders);
+}
+function leaderShare(leader){
+  const text=`${leader.share.toFixed(1)}% of ${leader.unit==='range'?'selected range':leader.unit} tokens`;
+  return bilingual(text,`占${{day:'当日',week:'所选7天',month:'当月',range:'所选时段'}[leader.unit]} Token 的 ${leader.share.toFixed(1)}%`);
 }
 function draw(days,leaders){
   const chart=$('chart');chart.replaceChildren();const W=Math.max(820,$('chart-wrap').clientWidth),L=65,R=75,B=48;
@@ -170,7 +176,7 @@ function draw(days,leaders){
     const monthDays=days.filter(d=>d.date.startsWith(leader.month));
     const center=(x(monthDays[0].date)+x(monthDays.at(-1).date))/2;
     const nameLines=leader.name.match(/.{1,25}/g)||[leader.name];
-    const lines=[leader.label,...nameLines,money(leader.cost)+bilingual(' est.','（预估）'),bilingual(leader.share.toFixed(1)+`% of ${leader.singleDay?'day':'month'} tokens`,`占${leader.singleDay?'当日':'当月'} Token 的 `+leader.share.toFixed(1)+'%')];
+    const lines=[leader.label,...nameLines,money(leader.cost)+bilingual(' est.','（预估）'),leaderShare(leader)];
     const width=Math.max(150,Math.max(...lines.map(s=>s.length))*6.6+18);
     const left=Math.max(L,Math.min(W-R-width,center-width/2));
     let lane=laneEnds.findIndex(end=>end+10<=left);
@@ -184,7 +190,7 @@ function draw(days,leaders){
   chart.style.height=H+'px';chart.style.minWidth=W+'px';
   chart.setAttribute('viewBox',`0 0 ${W} ${H}`);
   for(const a of annotations){
-    const top=8+a.lane*(boxHeight+10),group=svg('g',{'aria-label':a.lines.join(', '),'data-monthly-label':a.month});
+    const top=8+a.lane*(boxHeight+10),group=svg('g',{'aria-label':a.lines.join(', '),'data-period-label':a.label});
     group.append(svg('rect',{x:a.left,y:top,width:a.width,height:boxHeight,rx:5,fill:'#fff',stroke:color(a.name),'stroke-width':1.6}));
     a.lines.forEach((line,i)=>group.append(svg('text',{x:a.left+a.width/2,y:top+18+i*16,'text-anchor':'middle',fill:'#243341','font-size':12,'font-weight':i>0&&i<=a.lines.length-3?600:400},line)));
     chart.append(group);
