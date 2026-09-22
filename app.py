@@ -70,7 +70,8 @@ def public_data(folder):
 
 def collect_worker(config, destination, fingerprint, workdir=None):
     # Separate process makes blocking SSH and local parsing cancellable on Ctrl+C.
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import sqlite3
     from update import fetch, build
     cfg = configparser.ConfigParser(interpolation=None)
     if not cfg.read(config, encoding='utf-8'):
@@ -79,16 +80,52 @@ def collect_worker(config, destination, fingerprint, workdir=None):
     if not items:
         raise ValueError('No source sections configured')
     destination.parent.mkdir(parents=True, exist_ok=True)
+    previous = {}
+    if destination.exists():
+        saved = json.loads(destination.read_text(encoding='utf-8'))
+        if saved.get('config_hash') == fingerprint:
+            previous = saved
+    snapshots = previous.get('source_snapshots', {})
+    snapshots = {name: snapshots[name] for name, _ in items if name in snapshots}
+    failures = []
     context = nullcontext(str(workdir)) if workdir else tempfile.TemporaryDirectory(prefix='usage-web-refresh-')
     with context as tmp:
         with ThreadPoolExecutor(max_workers=len(items)) as pool:
-            sources = list(pool.map(fetch, items))
+            jobs = {pool.submit(fetch, item): item[0] for item in items}
+            for future in as_completed(jobs):
+                name = jobs[future]
+                try:
+                    _, snapshots[name] = future.result()
+                except (RuntimeError, OSError, ValueError, sqlite3.Error) as error:
+                    failures.append(name)
+                    print(f'{name}: refresh unavailable; keeping last successful data. {error}', file=sys.stderr, flush=True)
+        sources = [(name, snapshots[name]) for name, _ in items if name in snapshots]
         build(sources, Path(tmp), render_figures=False)
         data = public_data(Path(tmp))
+        old = previous.get('data') or {}
+        legacy = []
+        for name, _ in items:
+            if name not in failures:
+                data['sources'][name]['status'] = 'fresh'
+                continue
+            if name not in snapshots and name in old.get('sources', {}):
+                # Upgrade an existing aggregate-only cache without dropping offline hosts.
+                legacy.append(name)
+                data['rows'].extend(r for r in old.get('rows', []) if r['host'] == name)
+                data['session_rows'].extend(r for r in (old.get('session_rows') or []) if r['host'] == name)
+                data['sources'][name] = dict(old['sources'][name])
+            source = data['sources'].setdefault(name, {'collected_at': None, 'timezone': None})
+            source['status'] = 'stale' if source['collected_at'] else 'unavailable'
+        data['warnings'] = [f'{name}: disconnected or collection failed. ' +
+                            ('Showing last successful data.' if data['sources'][name]['status'] == 'stale'
+                             else 'No cached data available; totals are incomplete.')
+                            for name, _ in items if name in failures]
+        if legacy:
+            data['warnings'].append('Older cached data retained for offline sources; cross-machine deduplication cannot be rechecked until they reconnect.')
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=destination.parent,
                                          prefix='.web-', suffix='.tmp', delete=False) as stream:
             staged = Path(stream.name)
-            json.dump({'config_hash': fingerprint, 'data': data}, stream)
+            json.dump({'config_hash': fingerprint, 'data': data, 'source_snapshots': snapshots}, stream)
         try:
             os.replace(staged, destination)  # atomic on the cache's filesystem
         finally:

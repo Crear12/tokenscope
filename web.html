@@ -7,6 +7,7 @@
 <div class="actions"><label>Refresh every <input id="interval" type="number" min="5" max="600" step="1" value="300"> seconds</label><button id="apply">Apply</button><button id="refresh">Refresh now</button></div></header>
 <p id="status" role="status" aria-live="polite">Connecting…</p>
 <section class="controls" aria-label="Usage filters">
+<p id="source-alert" class="error" role="alert" hidden></p>
 <label>From <input id="from" type="date"></label><label>Through <input id="through" type="date"></label>
 <button id="reset">All dates & models</button>
 <label><input id="show-sessions" type="checkbox" aria-controls="session-panel">Show per-session usage</label>

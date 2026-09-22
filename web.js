@@ -190,8 +190,10 @@ function installData(next){
   if(!next)return;const allSelected=selected.size===known.size;data=next;
   const names=new Set(data.rows.map(r=>r.model));selected=allSelected?new Set(names):new Set([...selected].filter(m=>names.has(m)));known=names;
   const dates=data.rows.map(r=>r.date).sort();for(const id of ['from','through']){$(id).min=dates[0]||'';$(id).max=dates.at(-1)||'';}
-  $('freshness').textContent=t('Last successful collection: ')+new Date(data.generated_at).toLocaleString(uiLocale());
-  $('sources').replaceChildren();for(const [name,source]of Object.entries(data.sources))$('sources').append(element('p',`${name} · ${new Date(source.collected_at).toLocaleString(uiLocale())} · ${source.timezone}`));
+  $('freshness').textContent=t('Last dashboard refresh: ')+new Date(data.generated_at).toLocaleString(uiLocale());
+  $('source-alert').hidden=!data.warnings?.length;
+  $('source-alert').textContent=(data.warnings||[]).join(' ');
+  $('sources').replaceChildren();for(const [name,source]of Object.entries(data.sources))$('sources').append(element('p',`${name} · ${source.status||'fresh'} · ${source.collected_at?new Date(source.collected_at).toLocaleString(uiLocale()):'No successful collection'} · ${source.timezone||'Timezone unavailable'}`));
   $('caveats').replaceChildren(...data.caveats.map(s=>element('li',t(s))));modelControls();render();
 }
 async function request(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Usage-CSRF':csrf},body:JSON.stringify(body)});const value=await r.json();if(!r.ok)throw Error(value.error||t('Request failed'));return value;}

@@ -90,8 +90,16 @@ skip boundaries rather than overlap. Collection continues until Ctrl+C even if t
 browser closes. Filters are local to each browser. Monthly leaders and their costs
 are recomputed for the selected dates and models, including partial months and ties.
 
-The latest successful aggregate overwrites `output/web.json` atomically. Failed
-refreshes preserve the previous result. Temporary exports are cleaned up. Restart
+The dashboard atomically overwrites `output/web.json`, retaining one last-successful
+statistics snapshot per configured machine alongside its display data. If a machine
+is disconnected or collection fails, other machines still refresh. An alert marks
+the retained data as stale and source details show its original collection time.
+Machines with no successful snapshot are marked unavailable and totals incomplete.
+Reconnection replaces that machine's snapshot and clears its warning. Snapshots
+remain private, persist across restarts, and do not create dated archives. On the
+first refresh after upgrading an aggregate-only cache, offline data is retained,
+but cross-machine deduplication cannot be rechecked until those machines reconnect.
+Unexpected whole-refresh failures preserve the previous result. Temporary exports are cleaned up. Restart
 after editing configuration. Each refresh reads all retained CC-Switch statistics;
 it is not an incremental ingestion process. Sync CC-Switch first for fresh imports.
 
