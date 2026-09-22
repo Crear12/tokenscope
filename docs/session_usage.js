@@ -1,4 +1,7 @@
 'use strict';
+function modelsInDateRange(rows, from, through) {
+  return new Set(rows.filter(r => (!from || r.date >= from) && (!through || r.date <= through)).map(r => r.model));
+}
 function matchingModels(models, search) {
   const query = search.toLowerCase();
   return [...models].filter(model => model.toLowerCase().includes(query)).sort();
@@ -68,4 +71,4 @@ function jetColor(value,min,max) {
   const channel = center=>Math.round(255*Math.max(0,Math.min(1,1.5-Math.abs(4*t-center))));
   return `rgb(${channel(3)}, ${channel(2)}, ${channel(1)})`;
 }
-if (typeof module !== 'undefined') module.exports = {matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor};
+if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor};

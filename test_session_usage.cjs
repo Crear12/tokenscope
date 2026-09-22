@@ -15,6 +15,15 @@ const rows = [
   {...base,date:'2026-02-02',model:'a',app:'Claude Code'},
 ];
 const all = new Set(['a','b']);
+const {modelsInDateRange} = require('./session_usage.js');
+assert.deepEqual([...modelsInDateRange(rows,'','')], ['a','b']);
+assert.deepEqual([...modelsInDateRange(rows,'2026-02-01','2026-02-01')], ['a']);
+assert.deepEqual([...modelsInDateRange(rows,'','2026-02-01')], ['a']);
+assert.deepEqual([...modelsInDateRange(rows,'2026-02-02','')], ['b','a']);
+assert.equal(modelsInDateRange(rows,'2027-01-01','').size,0);
+assert.equal(modelsInDateRange(rows,'2026-02-02','2026-02-01').size,0);
+assert.deepEqual(matchingModels(modelsInDateRange(rows,'2026-02-01','2026-02-01'),'b'), []);
+assert.deepEqual(matchingModels(modelsInDateRange(rows,'2026-02-01','2026-02-02'),'B'), ['b']);
 let sessions = summarizeSessions(filterUsageRows(rows,'2026-02-01','2026-02-02',all));
 assert.equal(sessions.length,3); // same source ID on different machines/apps stays separate
 assert.equal(sessions[0].tokens,100);

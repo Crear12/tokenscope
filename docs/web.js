@@ -98,16 +98,18 @@ function renderSessions(resetLimit=true){
   $('session-more').hidden=groups.length<=sessionLimit;
   renderSessionDetail(filtered(data.session_rows),groups);
 }
+function availableModels(){return modelsInDateRange(data?.rows||[],$('from').value,$('through').value);}
 function modelControls(){
   $('models').replaceChildren();
-  for(const model of matchingModels(known,$('search').value)){
+  for(const model of matchingModels(availableModels(),$('search').value)){
     const label=element('label'), input=element('input');input.type='checkbox';input.checked=selected.has(model);input.setAttribute('aria-label',model);
     input.addEventListener('change',()=>{input.checked?selected.add(model):selected.delete(model);render();});
     const swatch=element('span',undefined,'swatch');swatch.style.background=color(model);label.append(input,swatch,document.createTextNode(model));$('models').append(label);
   }
 }
 function render(){
-  const rows=filtered();$('selection').textContent=bilingual(`Models · ${selected.size} of ${known.size}`,`模型 · 已选 ${selected.size} / ${known.size}`);
+  const rows=filtered(), available=availableModels(), selectedCount=[...available].filter(model=>selected.has(model)).length;
+  $('selection').textContent=bilingual(`Models · ${selectedCount} of ${available.size}`,`模型 · 已选 ${selectedCount} / ${available.size}`);
   renderSessions();
   $('tokens').textContent=compact(rows.reduce((a,r)=>a+r.tokens,0));
   $('tokens').title=rows.reduce((a,r)=>a+r.tokens,0).toLocaleString(uiLocale());
@@ -206,9 +208,9 @@ async function poll(){
     if(version!==status.version){const next=await request('/api/data');installData(next);version=status.version;if(!next)$('freshness').textContent=t('No successful collection yet.');}
   }catch(e){$('status').className='error';$('status').textContent=t('Server unavailable. Showing last loaded results. ')+e.message;}finally{pending=false;}
 }
-for(const id of ['from','through'])$(id).addEventListener('change',render);
+for(const id of ['from','through'])$(id).addEventListener('change',()=>{modelControls();render();});
 $('search').addEventListener('input',modelControls);
-$('all').onclick=()=>{selected=new Set(matchingModels(known,$('search').value));modelControls();render();};$('none').onclick=()=>{selected.clear();modelControls();render();};
+$('all').onclick=()=>{selected=new Set(matchingModels(availableModels(),$('search').value));modelControls();render();};$('none').onclick=()=>{selected.clear();modelControls();render();};
 $('reset').onclick=()=>{$('from').value='';$('through').value='';$('search').value='';selected=new Set(known);modelControls();render();};
 async function action(path,body){try{await request(path,body);await poll();}catch(e){$('status').textContent=e.message;$('status').className='error';}}
 $('refresh').onclick=()=>action('/api/refresh',{});
