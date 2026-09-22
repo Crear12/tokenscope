@@ -1,4 +1,8 @@
 'use strict';
+function matchingModels(models, search) {
+  const query = search.toLowerCase();
+  return [...models].filter(model => model.toLowerCase().includes(query)).sort();
+}
 // Pure functions shared by the live UI, synthetic demo, and regression tests.
 function filterUsageRows(rows, from, through, selected) {
   return rows.filter(r => (!from || r.date >= from) && (!through || r.date <= through) && selected.has(r.model));
@@ -64,4 +68,4 @@ function jetColor(value,min,max) {
   const channel = center=>Math.round(255*Math.max(0,Math.min(1,1.5-Math.abs(4*t-center))));
   return `rgb(${channel(3)}, ${channel(2)}, ${channel(1)})`;
 }
-if (typeof module !== 'undefined') module.exports = {filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor};
+if (typeof module !== 'undefined') module.exports = {matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor};

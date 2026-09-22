@@ -1,4 +1,10 @@
 const assert = require('node:assert/strict');
+const {matchingModels} = require('./session_usage.js');
+const modelNames = new Set(['Atlas Code','Cedar Think','Orbit Local']);
+assert.deepEqual(matchingModels(modelNames,'CODE'), ['Atlas Code']);
+assert.deepEqual(matchingModels(modelNames,''), ['Atlas Code','Cedar Think','Orbit Local']);
+assert.deepEqual(matchingModels(modelNames,'not found'), []);
+assert.deepEqual(matchingModels(modelNames,'o'), ['Atlas Code','Orbit Local']);
 const {filterUsageRows,summarizeSessions,sessionDetails,sessionMatrix,jetColor} = require('./session_usage.js');
 const base = {session_key:'one',host:'workstation',app:'Codex',requests:1,fresh_input_tokens:10,cache_read_tokens:20,cache_creation_tokens:5,output_tokens:15,tokens:50,cost_usd:'0.25'};
 const rows = [
