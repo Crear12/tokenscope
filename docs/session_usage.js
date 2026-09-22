@@ -82,6 +82,23 @@ function jetColor(value,min,max) {
   const channel = center=>Math.round(255*Math.max(0,Math.min(1,1.5-Math.abs(4*t-center))));
   return `rgb(${channel(3)}, ${channel(2)}, ${channel(1)})`;
 }
+// Compact sampled palettes; interpolate RGB anchors for continuous colors.
+const temporalPalettes = {
+  viridis:['#440154','#482878','#3e4989','#31688e','#26828e','#1f9e89','#35b779','#6ece58','#b5de2b','#fde725'],
+  plasma:['#0d0887','#46039f','#7201a8','#9c179e','#bd3786','#d8576b','#ed7953','#fb9f3a','#fdca26','#f0f921'],
+  inferno:['#000004','#1b0c41','#4a0c6b','#781c6d','#a52c60','#cf4446','#ed6925','#fb9b06','#f7d13d','#fcffa4'],
+  grayscale:['#000000','#ffffff']
+};
+function temporalColor(value,min,max,palette='jet') {
+  if(palette==='jet')return jetColor(value,min,max);
+  const colors=temporalPalettes[palette];
+  if(!colors)throw new Error('Unknown temporal palette: '+palette);
+  const t=max===min?.5:Math.max(0,Math.min(1,(value-min)/(max-min)));
+  const position=t*(colors.length-1),index=Math.min(colors.length-2,Math.floor(position)),fraction=position-index;
+  const rgb=hex=>[1,3,5].map(offset=>parseInt(hex.slice(offset,offset+2),16));
+  const a=rgb(colors[index]),b=rgb(colors[index+1]);
+  return `rgb(${a.map((value,i)=>Math.round(value+(b[i]-value)*fraction)).join(', ')})`;
+}
 // Interpolate only within consecutive recorded buckets; never bridge missing time.
 function temporalRuns(dates, days) {
   const runs = [];
@@ -94,4 +111,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns};
+if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

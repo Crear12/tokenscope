@@ -1,4 +1,13 @@
 const assert = require('node:assert/strict');
+const {temporalColor} = require('./session_usage.js');
+assert.equal(temporalColor(0,0,100,'viridis'),'rgb(68, 1, 84)');
+assert.equal(temporalColor(100,0,100,'viridis'),'rgb(253, 231, 37)');
+assert.equal(temporalColor(50,0,100,'grayscale'),'rgb(128, 128, 128)');
+assert.equal(temporalColor(5,5,5,'grayscale'),'rgb(128, 128, 128)');
+assert.equal(temporalColor(-1,0,100,'plasma'),temporalColor(0,0,100,'plasma'));
+assert.equal(temporalColor(101,0,100,'inferno'),temporalColor(100,0,100,'inferno'));
+assert.equal(temporalColor(0,0,100),'rgb(0, 0, 128)');
+assert.throws(()=>temporalColor(0,0,100,'missing'),/Unknown temporal palette/);
 const {temporalRuns} = require('./session_usage.js');
 const runs=temporalRuns(['a','b','c','d','Unknown hour'],new Map([['a',10],['b',30],['d',0],['Unknown hour',9]]));
 assert.deepEqual(runs,[[{index:0,tokens:10},{index:1,tokens:30}],[{index:3,tokens:0}],[{index:4,tokens:9}]]);

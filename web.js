@@ -18,6 +18,8 @@ function openSession(key){
   $('session-detail').scrollIntoView({block:'nearest'});
 }
 function renderSessionMatrix(rows){
+  const palette=$('matrix-palette').value,paletteName=$('matrix-palette').selectedOptions[0].textContent;
+  const heatColor=(value,min,max)=>temporalColor(value,min,max,palette);
   const hourly=Boolean($('from').value && $('from').value===$('through').value);
   $('matrix-title').textContent=bilingual('Temporal Session Token Usage','会话 Token 用量时间分布');
   const root=$('session-matrix'),legend=$('matrix-legend'),scrollTop=root.scrollTop;root.replaceChildren();legend.replaceChildren();
@@ -26,7 +28,7 @@ function renderSessionMatrix(rows){
   if(!matrix.sessions.length){root.append(element('p',t('No session detail matches these filters.')));return;}
   const labelWidth=Math.min(280,Math.floor(root.clientWidth*.35)),width=Math.max(1,root.clientWidth-labelWidth),dayWidth=width/matrix.dates.length;
   const bar=element('span',undefined,'matrix-colorbar');
-  bar.style.background=`linear-gradient(to right, ${Array.from({length:17},(_,i)=>jetColor(i,0,16)).join(',')})`;
+  bar.style.background=`linear-gradient(to right, ${Array.from({length:33},(_,i)=>heatColor(i,0,32)).join(',')})`;
   legend.append(element('span',`${matrix.min.toLocaleString(uiLocale())} tokens`),bar,element('span',`${matrix.max.toLocaleString(uiLocale())} tokens`),element('span',bilingual(`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString(uiLocale())} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`,`Jet · 有记录单元格的自适应线性色阶 · ${matrix.sessions.length.toLocaleString(uiLocale())} 个会话 × ${matrix.dates.length} 天`)));
   if(matrix.min===matrix.max)legend.append(element('span',t('All observed cells are equal (midpoint color).')));
   if(hourly){
@@ -34,6 +36,7 @@ function renderSessionMatrix(rows){
     if(matrix.dates.includes('Unknown hour'))legend.append(element('span',bilingual('Unknown hour: older records lack timestamps; refresh collection to resolve where available.','未知小时：旧记录缺少时间戳；刷新采集以恢复可用的时间信息。')));
   }
   const grid=element('div',undefined,'matrix-grid');grid.style.width='100%';grid.style.gridTemplateColumns=`${labelWidth}px minmax(0,1fr)`;
+  legend.children[3].textContent=legend.children[3].textContent.replace(/^Jet/,paletteName);
   const corner=element('div',bilingual('Session / Time','会话 / 时间'),'matrix-label matrix-corner');grid.append(corner);
   const header=svg('svg',{width,height:40,role:'img','aria-label':t('Date axis')});header.classList.add('matrix-header');
   const ticks=Math.min(matrix.dates.length,Math.max(1,Math.floor(width/100)));
@@ -52,9 +55,9 @@ function renderSessionMatrix(rows){
     for(const run of temporalRuns(matrix.dates,s.days)){
       const id=`temporal-${grid.children.length}-${run[0].index}`,x=run[0].index*dayWidth;
       const gradient=svg('linearGradient',{id,gradientUnits:'userSpaceOnUse',x1:x+dayWidth/2,x2:x+(run.length-.5)*dayWidth,y1:0,y2:0});
-      run.forEach((point,index)=>gradient.append(svg('stop',{offset:run.length===1?'0%':100*index/(run.length-1)+'%','stop-color':jetColor(point.tokens,matrix.min,matrix.max)})));
+      run.forEach((point,index)=>gradient.append(svg('stop',{offset:run.length===1?'0%':100*index/(run.length-1)+'%','stop-color':heatColor(point.tokens,matrix.min,matrix.max)})));
       defs.append(gradient);
-      row.append(svg('rect',{x,y:1,width:run.length*dayWidth,height:26,fill:run.length===1?jetColor(run[0].tokens,matrix.min,matrix.max):`url(#${id})`,'pointer-events':'none','aria-hidden':'true'}));
+      row.append(svg('rect',{x,y:1,width:run.length*dayWidth,height:26,fill:run.length===1?heatColor(run[0].tokens,matrix.min,matrix.max):`url(#${id})`,'pointer-events':'none','aria-hidden':'true'}));
     }
     for(const [date,tokens]of s.days){
       const text=`${full} · ${hourly?$('from').value+' ':''}${date} · ${tokens.toLocaleString(uiLocale())} tokens`;
@@ -245,6 +248,7 @@ $('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isI
 let resizeTimer;
 new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(data)render(false);},120);}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
+$('matrix-palette').addEventListener('change',()=>renderSessionMatrix(filtered(data?.session_rows||[])));
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};
 $('session-detail-close').onclick=()=>{activeSessionKey=null;renderSessions(false);};

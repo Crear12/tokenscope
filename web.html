@@ -27,6 +27,7 @@
 <h3 id="matrix-title">Temporal Session Token Usage</h3>
 <p>Smooth colors interpolate between adjacent recorded time buckets, not additional measured activity. Gaps stay blank. Hover or focus for exact bucket totals. Includes input, cache and output tokens; historical rollups without session detail are excluded.</p>
 <div id="matrix-legend"></div>
+<label>Color palette <select id="matrix-palette" aria-label="Temporal heatmap color palette"><option value="jet">Jet</option><option value="viridis">Viridis</option><option value="plasma">Plasma</option><option value="inferno">Inferno</option><option value="grayscale">Grayscale</option></select></label>
 <div id="session-matrix" tabindex="0" role="region" aria-label="Temporal session token usage; scroll vertically for all sessions"></div>
 <p id="matrix-detail" role="status">Hover or focus a colored cell for its title, date and exact token count.</p>
 <label>Sort by <select id="session-sort"><option value="tokens">Total tokens (highest first)</option><option value="cost">Estimated cost (highest first)</option><option value="latest">Latest selected activity</option></select></label>
