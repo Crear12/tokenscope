@@ -7,6 +7,32 @@ from update import build
 
 
 class SessionDetails(unittest.TestCase):
+    def test_subagent_parent_title(self):
+        import json
+        import sqlite3
+        from collect import enrich_session_titles
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            db = sqlite3.connect(home/'state_5.sqlite')
+            db.execute('CREATE TABLE threads(id TEXT, name TEXT, source TEXT)')
+            def spawn(parent):
+                return json.dumps({'subagent':{'thread_spawn':{'parent_thread_id':parent}}})
+            db.executemany('INSERT INTO threads VALUES(?,?,?)', [
+                ('parent','Fictional parent task','cli'),
+                ('child',None,spawn('parent')),('sibling','Old name',spawn('parent')),
+                ('indexed',None,spawn('index-parent')),('missing',None,spawn('absent')),
+                ('guardian',None,json.dumps({'subagent':{'other':'guardian'}}))])
+            db.commit(); db.close()
+            (home/'session_index.jsonl').write_text(json.dumps({'id':'index-parent','thread_name':'Indexed parent'})+'\n')
+            rows=[row(session_id=sid) for sid in ['child','sibling','indexed','missing','guardian']]
+            enrich_session_titles(rows,str(home),str(home/'projects'),[])
+            self.assertEqual(rows[0]['session_title'],'Subagent of: Fictional parent task')
+            self.assertEqual(rows[1]['session_title'],rows[0]['session_title'])
+            self.assertNotEqual(rows[0]['session_id'],rows[1]['session_id'])
+            self.assertEqual(rows[2]['session_title'],'Subagent of: Indexed parent')
+            self.assertEqual(rows[3]['session_title'],'Subagent of: Parent title unavailable')
+            self.assertNotIn('session_title',rows[4])
+
     def test_exact_message_link_and_ambiguous_ids(self):
         import json
         from collect import enrich_session_titles

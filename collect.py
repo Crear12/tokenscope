@@ -24,7 +24,7 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
                 if not line.strip():
                     continue
                 entry = json.loads(line)
-                if entry.get('id') in wanted and entry.get('thread_name'):
+                if entry.get('id') and entry.get('thread_name'):
                     codex_titles[entry['id']] = entry['thread_name']
     databases = sorted(home.glob('state_*.sqlite'),
                        key=lambda p: int(p.stem.split('_')[-1]) if p.stem.split('_')[-1].isdigit() else -1,
@@ -41,6 +41,21 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
                     for sid, name in db.execute('SELECT id,name FROM threads WHERE id IN (' + ','.join('?' for _ in chunk) + ')', chunk):
                         if name and name.strip():
                             codex_titles[sid] = name
+                if 'source' in columns:
+                    for offset in range(0, len(ids), 500):
+                        chunk = ids[offset:offset+500]
+                        for sid, source in db.execute('SELECT id,source FROM threads WHERE id IN (' + ','.join('?' for _ in chunk) + ')', chunk):
+                            if not source or not source.lstrip().startswith('{'):
+                                continue
+                            metadata = json.loads(source)
+                            subagent = metadata.get('subagent')
+                            spawn = subagent.get('thread_spawn') if isinstance(subagent, dict) else None
+                            parent = spawn.get('parent_thread_id') if isinstance(spawn, dict) else None
+                            if not parent:
+                                continue
+                            saved = db.execute('SELECT name FROM threads WHERE id=?', (parent,)).fetchone()
+                            title = saved[0] if saved and saved[0] and saved[0].strip() else codex_titles.get(parent)
+                            codex_titles[sid] = 'Subagent of: ' + (title or 'Parent title unavailable')
         finally:
             db.close()
     root = pathlib.Path(claude_projects).expanduser()

@@ -130,6 +130,9 @@ conversation ID. Only unique exact matches are used; ambiguous or missing links
 remain unchanged. No timestamp guessing is used, and token/cost accounting is
 preserved. Message bodies are not exported; only IDs and saved titles are retained.
 Optional `codex_home` and `claude_projects` source settings select metadata locations.
+Codex subagents are labeled **Subagent of: [parent task title]** using saved parent
+metadata. Missing parent titles are explicitly marked unavailable. Sibling agents
+retain distinct session identities even though their displayed titles match.
 Session IDs are SHA-256 hashed before export and identity includes machine and app,
 so identical titles do not merge. Hashes are pseudonymous, not anonymous.
 **Saved titles can be sensitive:** they appear in your local output and are visible
