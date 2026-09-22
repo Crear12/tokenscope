@@ -9,7 +9,7 @@
 <section class="controls" aria-label="Usage filters">
 <p id="source-alert" class="error" role="alert" hidden></p>
 <label>From <input id="from" type="date"></label><label>Through <input id="through" type="date"></label>
-<button id="reset">All dates & models</button>
+<button id="today">Today</button><button id="this-week">This week</button><button id="reset">All dates & models</button>
 <label><input id="show-sessions" type="checkbox" aria-controls="session-panel">Show per-session usage</label>
 <details id="model-filter"><summary id="selection">Models · all</summary>
 <input id="search" type="search" placeholder="Find model names" aria-label="Find model names">
@@ -24,7 +24,7 @@
 <h2>Per-session token usage</h2>
 <p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>
 <p id="session-coverage" role="status"></p>
-<h3>Session × date · token usage</h3>
+<h3 id="matrix-title">Session × date · token usage</h3>
 <p>All matching sessions, ordered by total tokens. Includes input, cache and output tokens. Blank cells have no session-day record; historical rollups without session detail are excluded.</p>
 <div id="matrix-legend"></div>
 <div id="session-matrix" tabindex="0" role="region" aria-label="Session title by date token heatmap; scroll for all sessions and dates"></div>

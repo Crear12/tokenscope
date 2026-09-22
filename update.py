@@ -158,6 +158,11 @@ def build(sources, out, render_figures=True):
                 st = session_totals[(r['date'], host, app, r['session_key'], model)]
                 st['requests'] += count
                 st['session_title'] = r.get('session_title') or ''
+                local_time = r.get('local_datetime', '')
+                hour = local_time[11:13]
+                if len(local_time) >= 13 and hour.isdigit() and 0 <= int(hour) < 24:
+                    hours = st.setdefault('hours', {})
+                    hours[hour] = hours.get(hour, 0) + fresh(r) + sum(r[k] for k in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'))
                 st['fresh_input_tokens'] += fresh(r)
                 for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
                     st[field] += r[field]
@@ -199,6 +204,7 @@ def build(sources, out, render_figures=True):
     session_daily = []
     for (date, host, app, session_key, model), st in sorted(session_totals.items()):
         item = dict(date=date, host=host, app=app, session_key=session_key, model=model, **st)
+        item['hours'] = json.dumps(item.get('hours', {}), sort_keys=True)
         item['total_tokens'] = sum(st[k] for k in ('fresh_input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens'))
         item['cost_usd'] = str(item['cost_usd'])
         session_daily.append(item)

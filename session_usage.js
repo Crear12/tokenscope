@@ -47,6 +47,7 @@ function sessionDetails(rows, key) {
           models:summarize('model').sort((a,b)=>b.tokens-a.tokens||a.value.localeCompare(b.value))};
 }
 function sessionMatrix(rows, from, through) {
+  const hourly = Boolean(from && from === through);
   const sessions = new Map();
   for (const r of rows) {
     const key = sessionIdentity(r);
@@ -54,11 +55,21 @@ function sessionMatrix(rows, from, through) {
     const s = sessions.get(key);
     if (r.session_title) s.title = r.session_title;
     s.total += r.tokens;
-    s.days.set(r.date,(s.days.get(r.date)||0)+r.tokens);
+    if (hourly) {
+      for (const [hour, tokens] of Object.entries(r.hours || {})) {
+        const label = hour + ':00';
+        s.days.set(label, (s.days.get(label) || 0) + tokens);
+      }
+      const missing = r.tokens - Object.values(r.hours || {}).reduce((sum, value) => sum + value, 0);
+      if (missing > 0) s.days.set('Unknown hour', (s.days.get('Unknown hour') || 0) + missing);
+    } else s.days.set(r.date,(s.days.get(r.date)||0)+r.tokens);
   }
   const ordered = [...sessions.values()].sort((a,b)=>b.total-a.total||a.key.localeCompare(b.key));
   const observed = rows.map(r=>r.date).sort(), dates = [];
-  if (observed.length) {
+  if (hourly && observed.length) {
+    dates.push(...Array.from({length:24}, (_, hour) => String(hour).padStart(2,'0') + ':00'));
+    if (ordered.some(s => s.days.has('Unknown hour'))) dates.push('Unknown hour');
+  } else if (observed.length) {
     const end = Date.parse((through||observed.at(-1))+'T00:00:00Z');
     for (let t=Date.parse((from||observed[0])+'T00:00:00Z');t<=end;t+=86400000) dates.push(new Date(t).toISOString().slice(0,10));
   }

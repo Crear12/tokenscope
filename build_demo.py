@@ -30,6 +30,7 @@ def synthetic_data():
             if day % 11:
                 session_rows.append(dict(rows[-1], session_key=hashlib.sha256(f'fictional-session-{day // 10}'.encode()).hexdigest(),
                                          session_title=('Build a sample dashboard', 'Review a fictional API', 'Explore a demo dataset')[day // 10 % 3] + f' · iteration {day // 10 + 1}',
+                                         hours={'09':tokens//3,'14':tokens-tokens//3},
                                          fresh_input_tokens=tokens//4, cache_read_tokens=tokens//2,
                                          cache_creation_tokens=tokens//10,
                                          output_tokens=tokens-tokens//4-tokens//2-tokens//10))

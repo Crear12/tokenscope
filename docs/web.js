@@ -18,6 +18,8 @@ function openSession(key){
   $('session-detail').scrollIntoView({block:'nearest'});
 }
 function renderSessionMatrix(rows){
+  const hourly=Boolean($('from').value && $('from').value===$('through').value);
+  $('matrix-title').textContent=bilingual(hourly?'Session × hour · token usage':'Session × date · token usage',hourly?'会话 × 小时 · Token 用量':'会话 × 日期 · Token 用量');
   const root=$('session-matrix'),legend=$('matrix-legend');root.replaceChildren();legend.replaceChildren();
   $('matrix-detail').textContent=t('Hover or focus a colored cell for its title, date and exact token count. Click a title or cell to open its session detail.');
   const matrix=sessionMatrix(rows,$('from').value,$('through').value);
@@ -27,8 +29,12 @@ function renderSessionMatrix(rows){
   bar.style.background=`linear-gradient(to right, ${Array.from({length:17},(_,i)=>jetColor(i,0,16)).join(',')})`;
   legend.append(element('span',`${matrix.min.toLocaleString(uiLocale())} tokens`),bar,element('span',`${matrix.max.toLocaleString(uiLocale())} tokens`),element('span',bilingual(`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString(uiLocale())} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`,`Jet · 有记录单元格的自适应线性色阶 · ${matrix.sessions.length.toLocaleString(uiLocale())} 个会话 × ${matrix.dates.length} 天`)));
   if(matrix.min===matrix.max)legend.append(element('span',t('All observed cells are equal (midpoint color).')));
+  if(hourly){
+    legend.children[3].textContent=bilingual(`Jet · adaptive range · ${matrix.sessions.length} sessions × 24 hours · source-local time`,`Jet · 自适应色阶 · ${matrix.sessions.length} 个会话 × 24 小时 · 来源机器本地时间`);
+    if(matrix.dates.includes('Unknown hour'))legend.append(element('span',bilingual('Unknown hour: older records lack timestamps; refresh collection to resolve where available.','未知小时：旧记录缺少时间戳；刷新采集以恢复可用的时间信息。')));
+  }
   const grid=element('div',undefined,'matrix-grid');grid.style.width=(width+labelWidth)+'px';
-  const corner=element('div',t('Session title / Date'),'matrix-label matrix-corner');grid.append(corner);
+  const corner=element('div',t(hourly?'Session title / Hour':'Session title / Date'),'matrix-label matrix-corner');grid.append(corner);
   const header=svg('svg',{width,height:40,role:'img','aria-label':t('Date axis')});header.classList.add('matrix-header');
   const tickStep=Math.ceil(100/dayWidth);
   matrix.dates.forEach((date,i)=>{if(i===0||i===matrix.dates.length-1||(i%tickStep===0&&i<matrix.dates.length-tickStep))header.append(svg('text',{x:i===0?4:i===matrix.dates.length-1?width-4:i*dayWidth+dayWidth/2,y:26,'font-size':12,'text-anchor':i===0?'start':i===matrix.dates.length-1?'end':'middle',fill:'#445466'},date));});
@@ -39,7 +45,7 @@ function renderSessionMatrix(rows){
     const label=element('div',undefined,'matrix-label'),open=element('button',name,'matrix-open');open.type='button';open.title=bilingual(`Open ${full}`,`打开 ${full}`);open.setAttribute('aria-label',bilingual(`Open session detail: ${full}`,`打开会话详情：${full}`));open.onclick=()=>openSession(s.key);label.append(open);grid.append(label);
     const row=svg('svg',{width,height:28,role:'group','aria-label':full});row.classList.add('matrix-row');
     for(const [date,tokens]of s.days){
-      const text=`${full} · ${date} · ${tokens.toLocaleString(uiLocale())} tokens`;
+      const text=`${full} · ${hourly?$('from').value+' ':''}${date} · ${tokens.toLocaleString(uiLocale())} tokens`;
       const rect=svg('rect',{x:positions.get(date)*dayWidth,y:1,width:dayWidth,height:26,fill:jetColor(tokens,matrix.min,matrix.max),tabindex:0,role:'img','aria-label':text,'data-tokens':tokens});
       const show=()=>{$('matrix-detail').textContent=text+bilingual(' Click to open this session detail.',' 点击打开会话详情。');};rect.addEventListener('mouseenter',show);rect.addEventListener('focus',show);rect.addEventListener('click',()=>openSession(s.key));rect.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openSession(s.key);}});
       row.append(rect);
@@ -210,6 +216,14 @@ async function poll(){
 }
 for(const id of ['from','through'])$(id).addEventListener('change',()=>{modelControls();render();});
 $('search').addEventListener('input',modelControls);
+function setQuickRange(week){
+  const end=new Date(),start=new Date(end);
+  if(week)start.setDate(start.getDate()-(start.getDay()+6)%7);
+  const date=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  $('from').value=date(start);$('through').value=date(end);modelControls();render();
+}
+$('today').onclick=()=>setQuickRange(false);
+$('this-week').onclick=()=>setQuickRange(true);
 $('all').onclick=()=>{selected=new Set(matchingModels(availableModels(),$('search').value));modelControls();render();};$('none').onclick=()=>{selected.clear();modelControls();render();};
 $('reset').onclick=()=>{$('from').value='';$('through').value='';$('search').value='';selected=new Set(known);modelControls();render();};
 async function action(path,body){try{await request(path,body);await poll();}catch(e){$('status').textContent=e.message;$('status').className='error';}}

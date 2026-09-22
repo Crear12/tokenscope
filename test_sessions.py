@@ -97,7 +97,7 @@ class SessionDetails(unittest.TestCase):
     def test_session_detail_grain_dedup_and_public_projection(self):
         from app import public_data
         requests = [row(request_id=str(i), provider_id='_session', date=date, model=model,
-                        session_key='hashed-id', session_title='Fictional example', total_cost_usd='0.10')
+                        session_key='hashed-id', session_title='Fictional example', total_cost_usd='0.10', local_datetime=date+' 09:30:00')
                     for i, (date, model) in enumerate([('2026-01-31', 'a'), ('2026-02-01', 'a'), ('2026-02-01', 'b')])]
         requests.append(row(request_id='no-session', provider_id='_session', date='2026-02-01', total_cost_usd='0.20'))
         rollup = row(provider_id='_session', date='2026-01-01', request_count=10, total_cost_usd='1')
@@ -107,6 +107,7 @@ class SessionDetails(unittest.TestCase):
             result = build([('one', data), ('two', data)], out, render_figures=False)
             public = public_data(out)
         self.assertEqual(len(public['session_rows']), 3)
+        self.assertTrue(all(r['hours'] == {'09': r['tokens']} for r in public['session_rows']))
         self.assertEqual({r['session_title'] for r in public['session_rows']}, {'Fictional example'})
         self.assertEqual(sum(r['requests'] for r in public['session_rows']), 3)
         self.assertEqual({r['host'] for r in public['session_rows']}, {'one'})

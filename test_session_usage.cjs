@@ -58,6 +58,14 @@ assert.equal(matrix.sessions[0].days.has('2026-02-02'),false);
 assert.equal(matrix.min,10);assert.equal(matrix.max,100);
 matrix=sessionMatrix(filterUsageRows(matrixRows,'2026-02-01','2026-02-01',new Set(['a'])),'2026-02-01','2026-02-01');
 assert.equal(matrix.sessions.length,1);assert.equal(matrix.min,50);assert.equal(matrix.max,50);
+assert.equal(matrix.dates.length,25); // old snapshots explicitly retain unknown-time usage
+assert.equal(matrix.sessions[0].days.get('Unknown hour'),50);
+const hourly = sessionMatrix([{...base,date:'2026-02-01',hours:{'09':20,'23':30}}], '2026-02-01','2026-02-01');
+assert.equal(hourly.dates.length,24);
+assert.equal(hourly.sessions[0].days.get('09:00'),20);
+assert.equal(hourly.sessions[0].days.get('23:00'),30);
+assert.equal(hourly.min,20);assert.equal(hourly.max,30);
+assert.equal([...hourly.sessions[0].days.values()].reduce((a,b)=>a+b,0),50);
 assert.equal(jetColor(50,50,50),'rgb(128, 255, 128)');
 assert.equal(jetColor(0,0,100),'rgb(0, 0, 128)');
 assert.equal(jetColor(100,0,100),'rgb(128, 0, 0)');
