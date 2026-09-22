@@ -9,7 +9,7 @@
 <section class="controls" aria-label="Usage filters">
 <p id="source-alert" class="error" role="alert" hidden></p>
 <label>From <input id="from" type="date"></label><label>Through <input id="through" type="date"></label>
-<button id="today">Today</button><button id="this-week">This week</button><button id="reset">All dates & models</button>
+<button id="today">Today</button><button id="past-seven-days">Past 7 Days</button><button id="reset">All dates & models</button>
 <label><input id="show-sessions" type="checkbox" checked aria-controls="session-panel">Show per-session usage</label>
 <details id="model-filter"><summary id="selection">Models · all</summary>
 <input id="search" type="search" placeholder="Find model names" aria-label="Find model names">
@@ -19,7 +19,7 @@
 <section class="chart-card"><h2>Daily tokens and cost</h2><p class="key">Colored bars: tokens by model, left axis. <b>Black line: daily total estimated USD, right axis.</b></p>
 <div id="chart-wrap"><svg id="chart" role="img" aria-label="Daily tokens by model with daily estimated cost line"></svg></div><p id="empty" hidden>No usage matches these filters.</p>
 <div id="tooltip" role="status" hidden></div></section>
-<section><h2>Monthly leading model</h2><p>Most tokens within the selected dates and models, including cache. Costs below belong to that model, not all models.</p><div id="leaders"></div></section>
+<section><h2 id="leaders-title">Monthly leading model</h2><p>Most tokens within the selected dates and models, including cache. Costs below belong to that model, not all models.</p><div id="leaders"></div></section>
 <section id="session-panel" class="chart-card" hidden aria-label="Per-session token usage">
 <h2>Per-session token usage</h2>
 <p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>

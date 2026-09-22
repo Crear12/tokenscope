@@ -130,6 +130,8 @@ function modelControls(){
   }
 }
 function render(resetLimit=true){
+  const singleDay=Boolean($('from').value && $('from').value===$('through').value);
+  $('leaders-title').textContent=bilingual(singleDay?'Daily leading model':'Monthly leading model',singleDay?'当日领先模型':'月度领先模型');
   const rows=filtered(), available=availableModels(), selectedCount=[...available].filter(model=>selected.has(model)).length;
   $('selection').textContent=bilingual(`Models · ${selectedCount} of ${available.size}`,`模型 · 已选 ${selectedCount} / ${available.size}`);
   renderSessions(resetLimit);
@@ -152,9 +154,9 @@ function render(resetLimit=true){
     const total=[...ms.values()].reduce((s,r)=>s+r.tokens,0);const max=Math.max(...[...ms.values()].map(r=>r.tokens));
     if(!total)continue;
     for(const [name,r]of ms)if(r.tokens===max){
-      leaders.push({month,name,cost:r.cost,share:100*r.tokens/total});
+      leaders.push({month,label:singleDay?$('from').value:month,singleDay,name,cost:r.cost,share:100*r.tokens/total});
       const box=element('article',undefined,'leader');box.style.borderTopColor=color(name);
-      box.append(element('span',month),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',bilingual(`${(100*r.tokens/total).toFixed(1)}% of selected month tokens`,`占所选月份 Token 的 ${(100*r.tokens/total).toFixed(1)}%`)));$('leaders').append(box);
+      box.append(element('span',singleDay?$('from').value:month),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',bilingual(`${(100*r.tokens/total).toFixed(1)}% of ${singleDay?'day':'selected month'} tokens`,`占所选${singleDay?'当日':'月份'} Token 的 ${(100*r.tokens/total).toFixed(1)}%`)));$('leaders').append(box);
     }
   }
   draw([...days.values()].sort((a,b)=>a.date.localeCompare(b.date)),leaders);
@@ -168,7 +170,7 @@ function draw(days,leaders){
     const monthDays=days.filter(d=>d.date.startsWith(leader.month));
     const center=(x(monthDays[0].date)+x(monthDays.at(-1).date))/2;
     const nameLines=leader.name.match(/.{1,25}/g)||[leader.name];
-    const lines=[leader.month,...nameLines,money(leader.cost)+bilingual(' est.','（预估）'),bilingual(leader.share.toFixed(1)+'% of month tokens','占当月 Token 的 '+leader.share.toFixed(1)+'%')];
+    const lines=[leader.label,...nameLines,money(leader.cost)+bilingual(' est.','（预估）'),bilingual(leader.share.toFixed(1)+`% of ${leader.singleDay?'day':'month'} tokens`,`占${leader.singleDay?'当日':'当月'} Token 的 `+leader.share.toFixed(1)+'%')];
     const width=Math.max(150,Math.max(...lines.map(s=>s.length))*6.6+18);
     const left=Math.max(L,Math.min(W-R-width,center-width/2));
     let lane=laneEnds.findIndex(end=>end+10<=left);
@@ -232,14 +234,14 @@ async function poll(){
 }
 for(const id of ['from','through'])$(id).addEventListener('change',()=>{modelControls();render();});
 $('search').addEventListener('input',modelControls);
-function setQuickRange(week){
+function setQuickRange(pastSevenDays){
   const end=new Date(),start=new Date(end);
-  if(week)start.setDate(start.getDate()-(start.getDay()+6)%7);
+  if(pastSevenDays)start.setDate(start.getDate()-6);
   const date=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
   $('from').value=date(start);$('through').value=date(end);modelControls();render();
 }
 $('today').onclick=()=>setQuickRange(false);
-$('this-week').onclick=()=>setQuickRange(true);
+$('past-seven-days').onclick=()=>setQuickRange(true);
 $('all').onclick=()=>{selected=new Set(matchingModels(availableModels(),$('search').value));modelControls();render();};$('none').onclick=()=>{selected.clear();modelControls();render();};
 $('reset').onclick=()=>{$('from').value='';$('through').value='';$('search').value='';selected=new Set(known);modelControls();render();};
 async function action(path,body){try{await request(path,body);await poll();}catch(e){$('status').textContent=e.message;$('status').className='error';}}

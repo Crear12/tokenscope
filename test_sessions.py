@@ -44,13 +44,25 @@ class SessionDetails(unittest.TestCase):
             for sid, mids in [('conversation-a', ['response-1', 'response-1', 'shared']), ('conversation-b', ['shared'])]:
                 (project / (sid + '.jsonl')).write_text('\n'.join(json.dumps({
                     'type':'assistant', 'sessionId':sid, 'message':{'id':mid,'content':'Never export this'}}) for mid in mids))
+            for sid in ('conversation-d', 'conversation-e'):
+                (project / (sid + '.jsonl')).write_text('\n'.join(json.dumps(entry) for entry in [
+                    {'type':'assistant', 'sessionId':sid, 'message':{'id':'same-title','content':'Never export this'}},
+                    {'type':'custom-title', 'sessionId':sid, 'customTitle':'Same saved title'}]))
             (desktop / 'example.json').write_text(json.dumps({'cliSessionId':'conversation-a','title':'Fictional desktop title'}))
+            for sid in ('conversation-f', 'conversation-g'):
+                entries = [{'type':'assistant','sessionId':sid,'message':{'id':'missing-title'}}]
+                if sid == 'conversation-f':
+                    entries.append({'type':'custom-title','sessionId':sid,'customTitle':'Only one candidate has a title'})
+                (project / (sid + '.jsonl')).write_text('\n'.join(json.dumps(entry) for entry in entries))
             (project / 'conversation-b').mkdir()
             (project / 'conversation-b' / 'custom-title.json').write_text(json.dumps({'customTitle':'Fictional CLI title'}))
             rows = [row(app_type='claude-desktop',request_id='session:response-1',session_id='proxy-id'),
                     row(app_type='claude-desktop',request_id='session:shared',session_id='ambiguous'),
                     row(app_type='claude',request_id='unmatched',session_id='conversation-b'),
-                    row(app_type='codex',request_id='session:response-1',session_id='codex-id')]
+                    row(app_type='codex',request_id='session:response-1',session_id='codex-id'),
+                    row(app_type='claude-desktop',request_id='session:same-title',session_id='proxy-same-title'),
+                    row(app_type='claude-desktop',request_id='session:missing-title',session_id='proxy-missing-title'),
+                    row(app_type='claude-desktop',request_id='session:no-match',session_id='proxy-no-match')]
             before = [{k:v for k,v in r.items() if k != 'session_id'} for r in rows]
             audit = enrich_session_titles(rows, str(root/'codex'), str(root/'projects'), [desktop])
             self.assertEqual(rows[0]['session_id'], 'conversation-a')
@@ -59,8 +71,14 @@ class SessionDetails(unittest.TestCase):
             self.assertNotIn('session_title', rows[1])
             self.assertEqual(rows[2]['session_title'], 'Fictional CLI title')
             self.assertEqual(rows[3]['session_id'], 'codex-id')
+            self.assertEqual(rows[4]['session_id'], 'proxy-same-title')
+            self.assertEqual(rows[4]['session_title'], 'Same saved title')
             self.assertEqual(audit['requests_linked_by_message_id'], 1)
-            self.assertEqual(audit['ambiguous_message_id_requests'], 1)
+            self.assertEqual(audit['ambiguous_message_id_requests'], 2)
+            for index, identity in [(5, 'proxy-missing-title'), (6, 'proxy-no-match')]:
+                self.assertEqual(rows[index]['session_id'], identity)
+                self.assertNotIn('session_title', rows[index])
+            self.assertEqual(audit['message_id_requests_resolved_by_same_title'], 1)
             self.assertEqual(before, [{k:v for k,v in r.items() if k not in ('session_id','session_title')} for r in rows])
 
     def test_saved_titles_without_prompt_fallback(self):

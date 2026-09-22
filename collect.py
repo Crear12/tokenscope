@@ -98,13 +98,23 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
     for sid, titles in desktop_titles.items():
         if len(titles) == 1:
             claude_titles[sid] = next(iter(titles))
-    linked = ambiguous = 0
+    linked = ambiguous = same_title = 0
+    message_titles = {}
     for row in rows:
         if row['app_type'] not in ('claude', 'claude-desktop'):
             continue
         candidates = message_sessions.get(row.get('request_id'), set())
         if len(candidates) > 1:
-            ambiguous += 1
+            # A duplicated assistant message can appear in more than one
+            # local JSONL session file.  It is safe to use the title only
+            # when every exact candidate has the same saved title; do not
+            # guess from timestamps or choose one session identity.
+            candidate_titles = {claude_titles.get(sid, '').strip() for sid in candidates}
+            if candidate_titles and '' not in candidate_titles and len(candidate_titles) == 1:
+                message_titles[id(row)] = next(iter(candidate_titles))
+                same_title += 1
+            else:
+                ambiguous += 1
         elif len(candidates) == 1:
             sid = next(iter(candidates))
             if row.get('session_id') != sid:
@@ -113,12 +123,13 @@ def enrich_session_titles(rows, codex_home='~/.codex', claude_projects='~/.claud
     matched = 0
     for row in rows:
         titles = codex_titles if row['app_type'] == 'codex' else claude_titles if row['app_type'] in ('claude', 'claude-desktop') else {}
-        title = titles.get(row.get('session_id'))
+        title = message_titles.get(id(row)) or titles.get(row.get('session_id'))
         if title:
             row['session_title'] = title
             matched += 1
     return {'requests_with_saved_title': matched, 'requests_linked_by_message_id': linked,
-            'ambiguous_message_id_requests': ambiguous}
+            'ambiguous_message_id_requests': ambiguous,
+            'message_id_requests_resolved_by_same_title': same_title}
 
 
 def enrich_session_providers(rows, roots):
