@@ -10,7 +10,10 @@ function color(name){
 }
 function element(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 function svg(tag,attrs,text){const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
-function filtered(rows=data?.rows||[]){return filterUsageRows(rows,$('from').value,$('through').value,selected);}
+function filtered(rows=data?.rows||[]){
+  const available=availableModels();
+  return filterUsageRows(rows,$('from').value,$('through').value,new Set([...selected].filter(model=>available.has(model))));
+}
 let sessionLimit=50, activeSessionKey=null;
 function openSession(key){
   activeSessionKey=key;
@@ -123,7 +126,7 @@ function renderSessions(resetLimit=true){
   $('session-more').hidden=groups.length<=sessionLimit;
   renderSessionDetail(sessionRows,groups);
 }
-function availableModels(){return modelsInDateRange(data?.rows||[],$('from').value,$('through').value);}
+function availableModels(){return availableUsageModels(data?.rows||[],data?.session_rows,$('from').value,$('through').value);}
 function modelControls(){
   $('models').replaceChildren();
   for(const model of matchingModels(availableModels(),$('search').value)){

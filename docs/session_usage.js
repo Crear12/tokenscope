@@ -16,6 +16,30 @@ function matchingModels(models, search) {
   const query = search.toLowerCase();
   return [...models].filter(model => model.toLowerCase().includes(query)).sort();
 }
+function availableUsageModels(rows, sessionRows, from, through) {
+  const names=modelsInDateRange(rows,from,through);
+  if(!Array.isArray(sessionRows))return names;
+  const valid=new Set(visibleSessionRows(sessionRows).filter(r=>(!from||r.date>=from)&&(!through||r.date<=through)).map(r=>r.model));
+  const recorded=new Map();
+  for(const r of sessionRows){
+    if((from&&r.date<from)||(through&&r.date>through))continue;
+    recorded.set(r.model,(recorded.get(r.model)||0)+r.requests);
+  }
+  const totals=new Map();
+  for(const r of rows){
+    if((from&&r.date<from)||(through&&r.date>through))continue;
+    const total=totals.get(r.model)||{tokens:0,cost:0,requests:0};
+    total.tokens+=r.tokens;total.cost+=Number(r.cost_usd);total.requests+=r.requests;
+    totals.set(r.model,total);
+  }
+  for(const [model,total] of totals){
+    // Hide only when all recorded requests are accounted for by excluded sessions.
+    // Missing session detail or unknown pricing alone must not hide real usage.
+    if(/^claude(?:-|$)/i.test(model)&&!valid.has(model)&&total.tokens===0&&total.cost===0&&
+       total.requests>0&&recorded.get(model)===total.requests)names.delete(model);
+  }
+  return names;
+}
 // Pure functions shared by the live UI, synthetic demo, and regression tests.
 function filterUsageRows(rows, from, through, selected) {
   return rows.filter(r => (!from || r.date >= from) && (!through || r.date <= through) && selected.has(r.model));
@@ -129,4 +153,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};
+if (typeof module !== 'undefined') module.exports = {availableUsageModels,visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

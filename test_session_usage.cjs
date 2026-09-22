@@ -54,6 +54,17 @@ const candidates=[
   {...rejectedRow,session_key:'rejected',host:'other-host',tokens:20},
 ];
 const visible=visibleSessionRows(candidates);
+const {availableUsageModels} = require('./session_usage.js');
+const invalidOnly=[{...rejectedRow,session_key:'invalid'}];
+assert.equal(availableUsageModels(invalidOnly,invalidOnly,'','').size,0);
+assert.equal(availableUsageModels(invalidOnly,null,'','').size,1);
+assert.equal(availableUsageModels([{...rejectedRow,requests:2}],invalidOnly,'','').size,1); // unlinked usage stays
+assert.equal(availableUsageModels([{...rejectedRow,tokens:1}],invalidOnly,'','').size,1);
+assert.equal(availableUsageModels([{...rejectedRow,cost_usd:'1'}],invalidOnly,'','').size,1);
+const mixedDays=[...invalidOnly,{...rejectedRow,session_key:'valid',date:'2026-09-19',tokens:5}];
+assert.equal(availableUsageModels(mixedDays,mixedDays,'2026-09-18','2026-09-18').size,0);
+assert.equal(availableUsageModels(mixedDays,mixedDays,'','').size,1);
+assert.equal(availableUsageModels([{...rejectedRow,model:'atlas'}],[], '', '').size,1);
 assert.equal(visible.length,candidates.length-1);
 assert.equal(candidates.length,8); // no source mutation
 assert.equal(visible.reduce((sum,row)=>sum+row.tokens,0),candidates.reduce((sum,row)=>sum+row.tokens,0));
