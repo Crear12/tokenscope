@@ -1,4 +1,9 @@
 const assert = require('node:assert/strict');
+const {temporalRuns} = require('./session_usage.js');
+const runs=temporalRuns(['a','b','c','d','Unknown hour'],new Map([['a',10],['b',30],['d',0],['Unknown hour',9]]));
+assert.deepEqual(runs,[[{index:0,tokens:10},{index:1,tokens:30}],[{index:3,tokens:0}],[{index:4,tokens:9}]]);
+assert.deepEqual(temporalRuns(['a'],new Map()),[]);
+assert.equal(runs.flat().reduce((sum,p)=>sum+p.tokens,0),49);
 const {matchingModels} = require('./session_usage.js');
 const modelNames = new Set(['Atlas Code','Cedar Think','Orbit Local']);
 assert.deepEqual(matchingModels(modelNames,'CODE'), ['Atlas Code']);

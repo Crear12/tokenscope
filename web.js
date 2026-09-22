@@ -19,12 +19,12 @@ function openSession(key){
 }
 function renderSessionMatrix(rows){
   const hourly=Boolean($('from').value && $('from').value===$('through').value);
-  $('matrix-title').textContent=bilingual(hourly?'Session × hour · token usage':'Session × date · token usage',hourly?'会话 × 小时 · Token 用量':'会话 × 日期 · Token 用量');
-  const root=$('session-matrix'),legend=$('matrix-legend');root.replaceChildren();legend.replaceChildren();
+  $('matrix-title').textContent=bilingual('Temporal Session Token Usage','会话 Token 用量时间分布');
+  const root=$('session-matrix'),legend=$('matrix-legend'),scrollTop=root.scrollTop;root.replaceChildren();legend.replaceChildren();
   $('matrix-detail').textContent=t('Hover or focus a colored cell for its title, date and exact token count. Click a title or cell to open its session detail.');
   const matrix=sessionMatrix(rows,$('from').value,$('through').value);
   if(!matrix.sessions.length){root.append(element('p',t('No session detail matches these filters.')));return;}
-  const cell=matrix.dates.length<=5?110:20,labelWidth=280,width=Math.max(matrix.dates.length*cell,root.clientWidth-labelWidth,110),dayWidth=width/matrix.dates.length;
+  const labelWidth=Math.min(280,Math.floor(root.clientWidth*.35)),width=Math.max(1,root.clientWidth-labelWidth),dayWidth=width/matrix.dates.length;
   const bar=element('span',undefined,'matrix-colorbar');
   bar.style.background=`linear-gradient(to right, ${Array.from({length:17},(_,i)=>jetColor(i,0,16)).join(',')})`;
   legend.append(element('span',`${matrix.min.toLocaleString(uiLocale())} tokens`),bar,element('span',`${matrix.max.toLocaleString(uiLocale())} tokens`),element('span',bilingual(`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString(uiLocale())} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`,`Jet · 有记录单元格的自适应线性色阶 · ${matrix.sessions.length.toLocaleString(uiLocale())} 个会话 × ${matrix.dates.length} 天`)));
@@ -33,26 +33,39 @@ function renderSessionMatrix(rows){
     legend.children[3].textContent=bilingual(`Jet · adaptive range · ${matrix.sessions.length} sessions × 24 hours · source-local time`,`Jet · 自适应色阶 · ${matrix.sessions.length} 个会话 × 24 小时 · 来源机器本地时间`);
     if(matrix.dates.includes('Unknown hour'))legend.append(element('span',bilingual('Unknown hour: older records lack timestamps; refresh collection to resolve where available.','未知小时：旧记录缺少时间戳；刷新采集以恢复可用的时间信息。')));
   }
-  const grid=element('div',undefined,'matrix-grid');grid.style.width=(width+labelWidth)+'px';
-  const corner=element('div',t(hourly?'Session title / Hour':'Session title / Date'),'matrix-label matrix-corner');grid.append(corner);
+  const grid=element('div',undefined,'matrix-grid');grid.style.width='100%';grid.style.gridTemplateColumns=`${labelWidth}px minmax(0,1fr)`;
+  const corner=element('div',bilingual('Session / Time','会话 / 时间'),'matrix-label matrix-corner');grid.append(corner);
   const header=svg('svg',{width,height:40,role:'img','aria-label':t('Date axis')});header.classList.add('matrix-header');
-  const tickStep=Math.ceil(100/dayWidth);
-  matrix.dates.forEach((date,i)=>{if(i===0||i===matrix.dates.length-1||(i%tickStep===0&&i<matrix.dates.length-tickStep))header.append(svg('text',{x:i===0?4:i===matrix.dates.length-1?width-4:i*dayWidth+dayWidth/2,y:26,'font-size':12,'text-anchor':i===0?'start':i===matrix.dates.length-1?'end':'middle',fill:'#445466'},date));});
+  const ticks=Math.min(matrix.dates.length,Math.max(1,Math.floor(width/100)));
+  for(let tick=0;tick<ticks;tick++){
+    const i=ticks===1?0:Math.round(tick*(matrix.dates.length-1)/(ticks-1)),date=matrix.dates[i];
+    const label=hourly?date:matrix.dates.length>120?date.slice(0,7):date;
+    header.append(svg('text',{x:tick===0?4:tick===ticks-1?width-4:i*dayWidth+dayWidth/2,y:26,'font-size':12,'text-anchor':tick===0?'start':tick===ticks-1?'end':'middle',fill:'#445466'},label));
+  }
   grid.append(header);
   const positions=new Map(matrix.dates.map((date,i)=>[date,i]));
   for(const s of matrix.sessions){
     const name=s.title||t('Title unavailable'),full=`${name} · ${s.host} / ${s.app}`;
     const label=element('div',undefined,'matrix-label'),open=element('button',name,'matrix-open');open.type='button';open.title=bilingual(`Open ${full}`,`打开 ${full}`);open.setAttribute('aria-label',bilingual(`Open session detail: ${full}`,`打开会话详情：${full}`));open.onclick=()=>openSession(s.key);label.append(open);grid.append(label);
     const row=svg('svg',{width,height:28,role:'group','aria-label':full});row.classList.add('matrix-row');
+    const defs=svg('defs',{});row.append(defs);
+    for(const run of temporalRuns(matrix.dates,s.days)){
+      const id=`temporal-${grid.children.length}-${run[0].index}`,x=run[0].index*dayWidth;
+      const gradient=svg('linearGradient',{id,gradientUnits:'userSpaceOnUse',x1:x+dayWidth/2,x2:x+(run.length-.5)*dayWidth,y1:0,y2:0});
+      run.forEach((point,index)=>gradient.append(svg('stop',{offset:run.length===1?'0%':100*index/(run.length-1)+'%','stop-color':jetColor(point.tokens,matrix.min,matrix.max)})));
+      defs.append(gradient);
+      row.append(svg('rect',{x,y:1,width:run.length*dayWidth,height:26,fill:run.length===1?jetColor(run[0].tokens,matrix.min,matrix.max):`url(#${id})`,'pointer-events':'none','aria-hidden':'true'}));
+    }
     for(const [date,tokens]of s.days){
       const text=`${full} · ${hourly?$('from').value+' ':''}${date} · ${tokens.toLocaleString(uiLocale())} tokens`;
-      const rect=svg('rect',{x:positions.get(date)*dayWidth,y:1,width:dayWidth,height:26,fill:jetColor(tokens,matrix.min,matrix.max),tabindex:0,role:'img','aria-label':text,'data-tokens':tokens});
+      const rect=svg('rect',{x:positions.get(date)*dayWidth,y:1,width:dayWidth,height:26,fill:'transparent',tabindex:0,role:'img','aria-label':text,'data-tokens':tokens});
       const show=()=>{$('matrix-detail').textContent=text+bilingual(' Click to open this session detail.',' 点击打开会话详情。');};rect.addEventListener('mouseenter',show);rect.addEventListener('focus',show);rect.addEventListener('click',()=>openSession(s.key));rect.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openSession(s.key);}});
       row.append(rect);
     }
     grid.append(row);
   }
   root.append(grid);
+  root.scrollTop=scrollTop;
 }
 function appendCells(body,values){const tr=element('tr');for(const value of values)tr.append(element('td',value));body.append(tr);}
 function renderSessionDetail(rows, groups){
@@ -113,10 +126,10 @@ function modelControls(){
     const swatch=element('span',undefined,'swatch');swatch.style.background=color(model);label.append(input,swatch,document.createTextNode(model));$('models').append(label);
   }
 }
-function render(){
+function render(resetLimit=true){
   const rows=filtered(), available=availableModels(), selectedCount=[...available].filter(model=>selected.has(model)).length;
   $('selection').textContent=bilingual(`Models · ${selectedCount} of ${available.size}`,`模型 · 已选 ${selectedCount} / ${available.size}`);
-  renderSessions();
+  renderSessions(resetLimit);
   $('tokens').textContent=compact(rows.reduce((a,r)=>a+r.tokens,0));
   $('tokens').title=rows.reduce((a,r)=>a+r.tokens,0).toLocaleString(uiLocale());
   $('cost').textContent=money(rows.reduce((a,r)=>a+Number(r.cost_usd),0));
@@ -229,7 +242,8 @@ $('reset').onclick=()=>{$('from').value='';$('through').value='';$('search').val
 async function action(path,body){try{await request(path,body);await poll();}catch(e){$('status').textContent=e.message;$('status').className='error';}}
 $('refresh').onclick=()=>action('/api/refresh',{});
 $('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isInteger(seconds)||seconds<5||seconds>600){$('status').textContent=t('Choose an integer from 5 to 600 seconds.');return;}action('/api/interval',{seconds});};
-new ResizeObserver(()=>{if(data)render();}).observe($('chart-wrap'));
+let resizeTimer;
+new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(data)render(false);},120);}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};

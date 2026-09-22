@@ -74,6 +74,8 @@ const ZH = {
   "Session title / Date": "会话标题 / 日期",
   "Session title / Hour": "会话标题 / 小时",
   "Today": "今天",
+  "Temporal Session Token Usage": "会话 Token 用量时间分布",
+  "Smooth colors interpolate between adjacent recorded time buckets, not additional measured activity. Gaps stay blank. Hover or focus for exact bucket totals. Includes input, cache and output tokens; historical rollups without session detail are excluded.": "平滑颜色仅在相邻的已记录时间段之间插值，不代表额外测量的活动。空缺保持空白。悬停或聚焦以查看精确用量。包含输入、缓存和输出 Token；不包含缺少会话详情的历史汇总。",
   "This week": "本周",
   "Date axis": "日期轴",
   "Session detail is unavailable in this snapshot. Refresh collection with the updated collector.": "当前快照没有会话明细，请使用新版采集器刷新。",

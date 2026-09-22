@@ -24,10 +24,10 @@
 <h2>Per-session token usage</h2>
 <p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>
 <p id="session-coverage" role="status"></p>
-<h3 id="matrix-title">Session × date · token usage</h3>
-<p>All matching sessions, ordered by total tokens. Includes input, cache and output tokens. Blank cells have no session-day record; historical rollups without session detail are excluded.</p>
+<h3 id="matrix-title">Temporal Session Token Usage</h3>
+<p>Smooth colors interpolate between adjacent recorded time buckets, not additional measured activity. Gaps stay blank. Hover or focus for exact bucket totals. Includes input, cache and output tokens; historical rollups without session detail are excluded.</p>
 <div id="matrix-legend"></div>
-<div id="session-matrix" tabindex="0" role="region" aria-label="Session title by date token heatmap; scroll for all sessions and dates"></div>
+<div id="session-matrix" tabindex="0" role="region" aria-label="Temporal session token usage; scroll vertically for all sessions"></div>
 <p id="matrix-detail" role="status">Hover or focus a colored cell for its title, date and exact token count.</p>
 <label>Sort by <select id="session-sort"><option value="tokens">Total tokens (highest first)</option><option value="cost">Estimated cost (highest first)</option><option value="latest">Latest selected activity</option></select></label>
 <div class="session-scroll" tabindex="0" role="region" aria-label="Session details table, scroll horizontally for all columns">

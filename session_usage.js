@@ -82,4 +82,16 @@ function jetColor(value,min,max) {
   const channel = center=>Math.round(255*Math.max(0,Math.min(1,1.5-Math.abs(4*t-center))));
   return `rgb(${channel(3)}, ${channel(2)}, ${channel(1)})`;
 }
-if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor};
+// Interpolate only within consecutive recorded buckets; never bridge missing time.
+function temporalRuns(dates, days) {
+  const runs = [];
+  let run = null;
+  dates.forEach((date, index) => {
+    if (!days.has(date)) { run = null; return; }
+    if (!run || date === 'Unknown hour') { run = []; runs.push(run); }
+    run.push({index, tokens:days.get(date)});
+    if (date === 'Unknown hour') run = null;
+  });
+  return runs;
+}
+if (typeof module !== 'undefined') module.exports = {modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns};
