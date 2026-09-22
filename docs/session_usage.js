@@ -23,6 +23,14 @@ function filterUsageRows(rows, from, through, selected) {
 function sessionIdentity(row) {
   return JSON.stringify([row.host,row.app,row.session_key]);
 }
+// Check the complete snapshot, not a date/model-filtered fragment of a session.
+function visibleSessionRows(rows) {
+  const rejected = new Set(summarizeSessions(rows)
+    .filter(s => s.requests === 1 && s.tokens === 0 && s.cost === 0 &&
+      s.models.every(model => /^claude(?:-|$)/i.test(model)))
+    .map(sessionIdentity));
+  return rows.filter(row => !rejected.has(sessionIdentity(row)));
+}
 function summarizeSessions(rows) {
   const groups = new Map();
   const fields = ['tokens','requests','fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens'];
@@ -121,4 +129,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};
+if (typeof module !== 'undefined') module.exports = {visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

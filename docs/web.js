@@ -103,14 +103,17 @@ function renderSessions(resetLimit=true){
     $('session-coverage').textContent=t('Session detail is unavailable in this snapshot. Refresh collection with the updated collector.');
     $('session-table').hidden=true;$('session-empty').hidden=true;return;
   }
-  const groups=summarizeSessions(filtered(data.session_rows));
-  renderSessionMatrix(filtered(data.session_rows));
+  const sessionRows=filtered(visibleSessionRows(data.session_rows));
+  const hiddenRequests=filtered(data.session_rows).reduce((sum,row)=>sum+row.requests,0)-sessionRows.reduce((sum,row)=>sum+row.requests,0);
+  const groups=summarizeSessions(sessionRows);
+  renderSessionMatrix(sessionRows);
   const mode=$('session-sort').value;
   groups.sort((a,b)=>(mode==='latest'?b.last.localeCompare(a.last):b[mode]-a[mode])||a.session_key.localeCompare(b.session_key)||a.host.localeCompare(b.host)||a.app.localeCompare(b.app));
-  const totals=filtered(),allTokens=totals.reduce((s,r)=>s+r.tokens,0),allRequests=totals.reduce((s,r)=>s+r.requests,0);
+  const totals=filtered(),allTokens=totals.reduce((s,r)=>s+r.tokens,0),allRequests=totals.reduce((s,r)=>s+r.requests,0)-hiddenRequests;
   const tokens=groups.reduce((s,r)=>s+r.tokens,0),requests=groups.reduce((s,r)=>s+r.requests,0),cost=groups.reduce((s,r)=>s+r.cost,0);
   $('session-coverage').textContent=bilingual(`${groups.length.toLocaleString(uiLocale())} identified sessions · ${tokens.toLocaleString(uiLocale())} tokens · ${money(cost)} est. · ${requests.toLocaleString(uiLocale())} requests. ${Math.max(0,allTokens-tokens).toLocaleString(uiLocale())} tokens / ${Math.max(0,allRequests-requests).toLocaleString(uiLocale())} requests lack session detail (including historical rollups). Showing ${Math.min(sessionLimit,groups.length)} of ${groups.length.toLocaleString(uiLocale())} sessions.`,`已识别 ${groups.length.toLocaleString(uiLocale())} 个会话 · ${tokens.toLocaleString(uiLocale())} Token · ${money(cost)}（预估）· ${requests.toLocaleString(uiLocale())} 次请求。另有 ${Math.max(0,allTokens-tokens).toLocaleString(uiLocale())} Token / ${Math.max(0,allRequests-requests).toLocaleString(uiLocale())} 次请求缺少会话明细（含历史汇总）。表格显示 ${Math.min(sessionLimit,groups.length)} / ${groups.length.toLocaleString(uiLocale())} 个会话。`);
   $('session-table').hidden=!groups.length;$('session-empty').hidden=groups.length>0;
+  if(hiddenRequests)$('session-coverage').textContent+=bilingual(` Hidden: ${hiddenRequests} zero-token, zero-cost Claude sessions with one request.`,` 已隐藏 ${hiddenRequests} 个仅有1次请求、零 Token、零费用的 Claude 会话。`);
   for(const s of groups.slice(0,sessionLimit)){
     const key=sessionIdentity(s),tr=element('tr');if(key===activeSessionKey)tr.className='session-active';const title=element('td'),open=element('button',s.title||t('Title unavailable'),'session-open');open.type='button';open.title=s.title||t('No saved conversation title matches this source record.');open.setAttribute('aria-expanded',String(key===activeSessionKey));open.onclick=()=>openSession(key);title.append(open);tr.append(title);
     const values=[s.first===s.last?s.first:`${s.first} → ${s.last}`,`${s.host} / ${s.app}`,s.models.join(', '),
@@ -118,7 +121,7 @@ function renderSessions(resetLimit=true){
     for(const value of values)tr.append(element('td',value));$('session-body').append(tr);
   }
   $('session-more').hidden=groups.length<=sessionLimit;
-  renderSessionDetail(filtered(data.session_rows),groups);
+  renderSessionDetail(sessionRows,groups);
 }
 function availableModels(){return modelsInDateRange(data?.rows||[],$('from').value,$('through').value);}
 function modelControls(){
@@ -256,7 +259,7 @@ $('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isI
 let resizeTimer;
 new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(data)render(false);},120);}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
-$('matrix-palette').addEventListener('change',()=>renderSessionMatrix(filtered(data?.session_rows||[])));
+$('matrix-palette').addEventListener('change',()=>renderSessionMatrix(filtered(visibleSessionRows(data?.session_rows||[]))));
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};
 $('session-detail-close').onclick=()=>{activeSessionKey=null;renderSessions(false);};

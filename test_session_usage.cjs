@@ -41,6 +41,25 @@ const rows = [
   {...base,date:'2026-02-02',model:'a',app:'Claude Code'},
 ];
 const all = new Set(['a','b']);
+const {visibleSessionRows} = require('./session_usage.js');
+const rejectedRow={...base,model:'claude-haiku-4-5',date:'2026-09-18',tokens:0,cost_usd:'0',requests:1};
+const candidates=[
+  {...rejectedRow,session_key:'rejected'},
+  {...rejectedRow,session_key:'free-valid',tokens:10},
+  {...rejectedRow,session_key:'paid',cost_usd:'0.01'},
+  {...rejectedRow,session_key:'two-requests',requests:2},
+  {...rejectedRow,session_key:'other-model',model:'atlas'},
+  {...rejectedRow,session_key:'later-valid'},
+  {...rejectedRow,session_key:'later-valid',date:'2026-09-19',tokens:5},
+  {...rejectedRow,session_key:'rejected',host:'other-host',tokens:20},
+];
+const visible=visibleSessionRows(candidates);
+assert.equal(visible.length,candidates.length-1);
+assert.equal(candidates.length,8); // no source mutation
+assert.equal(visible.reduce((sum,row)=>sum+row.tokens,0),candidates.reduce((sum,row)=>sum+row.tokens,0));
+assert.equal(visible.filter(row=>row.session_key==='later-valid').length,2);
+assert.equal(visible.filter(row=>row.session_key==='rejected').length,1); // other host stays
+assert.equal(visibleSessionRows([{...rejectedRow,model:'CLAUDE-OPUS-5'}]).length,0);
 const {modelsInDateRange} = require('./session_usage.js');
 assert.deepEqual([...modelsInDateRange(rows,'','')], ['a','b']);
 assert.deepEqual([...modelsInDateRange(rows,'2026-02-01','2026-02-01')], ['a']);
