@@ -17,9 +17,9 @@ class ResponseTPS(unittest.TestCase):
     def test_response_rates_and_missing_timing(self):
         records=[]
         for index, extra in enumerate([
-            {'output_tokens':100,'duration_ms':2000,'latency_ms':9000},
+            {'output_tokens':100,'duration_ms':2000,'latency_ms':9000,'native_response_ms':1},
             {'output_tokens':90,'latency_ms':3000},
-            {'output_tokens':800},  # untimed output is not assigned a rate
+            {'output_tokens':800,'native_response_ms':4000},  # separate optional estimate
             {'output_tokens':100,'duration_ms':1,'status_code':500},
             {'output_tokens':0,'duration_ms':1000},
         ]):
@@ -34,6 +34,9 @@ class ResponseTPS(unittest.TestCase):
         self.assertEqual(result['tps_count'],2)
         self.assertEqual(result['tps_sum'],80)  # 50 + 30; mean 40, not total tokens/session time
         self.assertEqual(result['tps_max'],50)
+        self.assertEqual(result['native_tps_count'],1)
+        self.assertEqual(result['native_tps_sum'],200)
+        self.assertEqual(result['native_tps_max'],200)
 
 
 if __name__ == '__main__':

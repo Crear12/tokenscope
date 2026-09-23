@@ -62,8 +62,22 @@ The animated demo is an HTML page; GitHub's README itself does not execute JavaS
 
 ## Quick start
 
+Codex native-log TPS estimates are **enabled by default**. Uncheck **Include Codex
+native-log TPS estimates** in the per-session section to hide them (saved per browser).
+To stop scanning native logs on a machine, set `codex_native_tps = false` in that
+`[source:...]` section of your private INI configuration, then restart and refresh.
+Only unique exact session ID, usage-event second and input, cached-input and output
+token counts are joined. No nearest-timestamp guessing is used.
+The estimated interval runs from logged user/tool input to generated output, excluding
+completed tool execution and gaps between turns; client scheduling/TTFT can remain.
+It is not a server stopwatch measurement or instantaneous decoding speed.
+Missing/ambiguous boundaries remain unavailable. Rates containing estimates have an
+**≈** prefix. Tokens, costs and request counts never change with this switch.
+Older snapshots need a refresh. Native estimates remain separate in CSV/JSON
+(`native_tps_count/sum/max`); diagnostic `request_tps.csv` retains recorded timings only.
+
 Per-session tables and drill-downs include average and maximum response TPS and timing
-coverage. Each rate is output tokens divided by recorded response seconds
+coverage. Each recorded rate is output tokens divided by recorded response seconds
 (`duration_ms`, otherwise `latency_ms`), including time to first token. Average TPS is
 the arithmetic mean of successful timed response rates; maximum is the fastest
 response average, not instantaneous streaming speed. Session idle gaps and input/cache

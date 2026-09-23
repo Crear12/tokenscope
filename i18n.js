@@ -75,6 +75,8 @@ const ZH = {
   "Session title / Hour": "会话标题 / 小时",
   "Today": "今天",
   "Avg TPS": "平均 TPS",
+  "Include Codex native-log TPS estimates": "包含 Codex 原生日志 TPS 估算",
+  "≈ includes Codex estimates: output tokens divided by the logged user/tool-input-to-generated-output window, not the whole turn. Completed tool execution and gaps between turns are excluded; client scheduling and time to first token can remain. Only unique exact session, usage timestamp and token-count matches are used. Missing boundaries stay unavailable. This switch affects TPS only and is saved in this browser.": "≈ 包含 Codex 估算：输出 Token 除以日志中用户或工具输入至生成输出的时间，而非整个轮次。排除已完成的工具执行及轮次间空闲时间，但可能包含客户端调度和首 Token 等待。仅采用会话、用量时间戳和 Token 数完全匹配且唯一的记录。缺少边界时不估算。开关仅影响 TPS，保存在本浏览器中。",
   "TPS = output tokens / recorded response seconds (duration_ms, otherwise latency_ms), including time to first token. Average is the arithmetic mean of successful timed response rates; maximum is the fastest response rate, not peak streaming speed. Session idle time and input/cache tokens are not used. Untimed or zero-output responses are excluded; — means unavailable. Date and model filters apply.": "TPS = 输出 Token / 已记录的响应秒数（优先 duration_ms，否则 latency_ms），包含首 Token 等待时间。平均值为成功且有计时响应速率的算术平均值；最大值为最快响应的平均速率，而非瞬时生成峰值。不使用会话空闲时间及输入或缓存 Token。排除无计时或零输出响应；— 表示不可用。日期和模型筛选同样适用。",
   "Max TPS": "最高 TPS",
   "Timed responses": "有计时的响应",

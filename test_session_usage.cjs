@@ -1,4 +1,16 @@
 const assert = require('node:assert/strict');
+const {withNativeTPS}=require('./session_usage.js');
+const rates=[{tps_count:2,tps_sum:80,tps_max:50,native_tps_count:1,native_tps_sum:100,native_tps_max:100,tokens:123,requests:4}];
+const enabled=withNativeTPS(rates)[0],disabled=withNativeTPS(rates,false)[0];
+assert.equal(enabled.tps_count,3);
+assert.equal(enabled.tps_sum/enabled.tps_count,60);
+assert.equal(enabled.tps_max,100);
+assert.equal(disabled.tps_count,2);
+assert.equal(disabled.tps_max,50);
+assert.equal(disabled.native_tps_count,0);
+assert.equal(enabled.tokens,disabled.tokens);
+assert.equal(rates[0].tps_count,2); // no mutation or repeated-refresh double count
+assert.equal(withNativeTPS([{}])[0].tps_count,0);
 const {leaderPeriod} = require('./session_usage.js');
 assert.equal(leaderPeriod('2026-09-22','2026-09-22').unit,'day');
 assert.equal(leaderPeriod('2026-09-16','2026-09-22').unit,'week');

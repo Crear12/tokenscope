@@ -69,13 +69,17 @@ def fetch(item):
     roots = [p.strip() for p in cfg.get('codex_session_roots', '~/.codex/sessions;~/.codex/archived_sessions').split(';') if p.strip()]
     codex_home = cfg.get('codex_home', '~/.codex')
     claude_projects = cfg.get('claude_projects', '~/.claude/projects')
+    native_option = cfg.get('codex_native_tps', 'true').lower()
+    if native_option not in configparser.ConfigParser.BOOLEAN_STATES:
+        raise ValueError('codex_native_tps must be true or false')
+    native_tps = configparser.ConfigParser.BOOLEAN_STATES[native_option]
     if cfg['transport'] == 'local':
-        data = collect(database, roots, codex_home, claude_projects)
+        data = collect(database, roots, codex_home, claude_projects, native_tps)
     elif cfg['transport'] == 'ssh':
         # Execute allowlisted reader in memory; no remote installation or database copy.
         code = (ROOT / 'collect.py').read_text() + '\n'
         code = code.replace("if __name__ == '__main__':", 'if False:')
-        code += 'import zlib,base64\nprint(base64.b64encode(zlib.compress(json.dumps(collect(' + repr(database) + ', ' + repr(roots) + ', ' + repr(codex_home) + ', ' + repr(claude_projects) + ')).encode(), 9)).decode())\n'
+        code += 'import zlib,base64\nprint(base64.b64encode(zlib.compress(json.dumps(collect(' + repr(database) + ', ' + repr(roots) + ', ' + repr(codex_home) + ', ' + repr(claude_projects) + ', ' + repr(native_tps) + ')).encode(), 9)).decode())\n'
         encoded = base64.b64encode(zlib.compress(code.encode(), 9)).decode()
         python = cfg['python']
         if any(c in python for c in '\"\r\n'):
@@ -167,7 +171,7 @@ def build(sources, out, render_figures=True):
             if grain == 'request' and r.get('session_key'):
                 st = session_totals[(r['date'], host, app, r['session_key'], model)]
                 st['requests'] += count
-                for field in ('tps_count', 'tps_sum', 'tps_max'):
+                for field in ('tps_count', 'tps_sum', 'tps_max', 'native_tps_count', 'native_tps_sum', 'native_tps_max'):
                     st.setdefault(field, 0)
                 st['session_title'] = r.get('session_title') or ''
                 local_time = r.get('local_datetime', '')
@@ -180,6 +184,14 @@ def build(sources, out, render_figures=True):
                     st[field] += r[field]
                 st['cost_usd'] = st.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
             duration = response_duration_ms(r)
+            native_duration = r.get('native_response_ms', 0)
+            if (grain == 'request' and r.get('session_key') and duration == 0 and
+                    native_duration > 0 and math.isfinite(native_duration) and
+                    r['output_tokens'] > 0 and 200 <= r['status_code'] < 300):
+                rate = r['output_tokens'] * 1000 / native_duration
+                st['native_tps_count'] += 1
+                st['native_tps_sum'] += rate
+                st['native_tps_max'] = max(st['native_tps_max'], rate)
             if grain == 'request' and duration > 0 and r['output_tokens'] > 0 and 200 <= r['status_code'] < 300:
                 samples.append({'date': r['date'], 'local_datetime': r.get('local_datetime', r['date']), 'host': host, 'app': app, 'provider': provider, 'model': model, 'created_at': r['created_at'], 'output_tokens': r['output_tokens'], 'duration_ms': duration, 'duration_source': 'duration_ms' if r.get('duration_ms') == duration else 'latency_ms', 'tps': r['output_tokens'] / (duration / 1000)})
                 audit[host]['timed_requests'] += 1

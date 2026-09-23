@@ -35,6 +35,10 @@ def synthetic_data():
                                          fresh_input_tokens=tokens//4, cache_read_tokens=tokens//2,
                                          cache_creation_tokens=tokens//10,
                                          output_tokens=tokens-tokens//4-tokens//2-tokens//10))
+                if rows[-1]['app'] == 'Codex':
+                    for field in ('tps_count', 'tps_sum', 'tps_max'):
+                        session_rows[-1]['native_' + field] = session_rows[-1][field]
+                        session_rows[-1][field] = 0
     return dict(generated_at='2026-04-01T00:00:00Z', rows=rows, session_rows=session_rows,
                 sources={name: dict(collected_at='2026-04-01T00:00:00Z', timezone='UTC')
                          for name in ('workstation', 'lab')},

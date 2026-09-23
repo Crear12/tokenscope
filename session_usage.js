@@ -56,10 +56,20 @@ function visibleSessionRows(rows) {
   return rows.filter(row => !rejected.has(sessionIdentity(row)));
 }
 function mergeResponseRates(group,row){
+  group.native_tps_count=(group.native_tps_count||0)+(row.native_tps_count||0);
   group.tps_count=(group.tps_count||0)+(row.tps_count||0);
   group.tps_sum=(group.tps_sum||0)+(row.tps_sum||0);
   group.tps_max=Math.max(group.tps_max||0,row.tps_max||0);
   group.tps_avg=group.tps_count?group.tps_sum/group.tps_count:null;
+}
+function withNativeTPS(rows, enabled=true){
+  return rows.map(row=>{
+    const count=enabled?(row.native_tps_count||0):0;
+    return {...row,tps_count:(row.tps_count||0)+count,
+      tps_sum:(row.tps_sum||0)+(count?(row.native_tps_sum||0):0),
+      tps_max:Math.max(row.tps_max||0,count?(row.native_tps_max||0):0),
+      native_tps_count:count};
+  });
 }
 function summarizeSessions(rows) {
   const groups = new Map();
@@ -161,4 +171,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {availableUsageModels,visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};
+if (typeof module !== 'undefined') module.exports = {withNativeTPS,availableUsageModels,visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

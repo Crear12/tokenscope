@@ -74,7 +74,8 @@ function renderSessionMatrix(rows){
   root.scrollTop=scrollTop;
 }
 function responseRateCells(s){
-  return [s.tps_count?s.tps_avg.toFixed(2):'—',s.tps_count?s.tps_max.toFixed(2):'—',`${s.tps_count||0} / ${s.requests}`];
+  const estimate=s.native_tps_count?'≈':'';
+  return [s.tps_count?estimate+s.tps_avg.toFixed(2):'—',s.tps_count?estimate+s.tps_max.toFixed(2):'—',`${s.tps_count||0} / ${s.requests}`];
 }
 function appendCells(body,values){const tr=element('tr');for(const value of values)tr.append(element('td',value));body.append(tr);}
 function renderSessionDetail(rows, groups){
@@ -112,7 +113,7 @@ function renderSessions(resetLimit=true){
     $('session-coverage').textContent=t('Session detail is unavailable in this snapshot. Refresh collection with the updated collector.');
     $('session-table').hidden=true;$('session-empty').hidden=true;return;
   }
-  const sessionRows=filtered(visibleSessionRows(data.session_rows));
+  const sessionRows=withNativeTPS(filtered(visibleSessionRows(data.session_rows)),$('native-tps').checked);
   const hiddenRequests=filtered(data.session_rows).reduce((sum,row)=>sum+row.requests,0)-sessionRows.reduce((sum,row)=>sum+row.requests,0);
   const groups=summarizeSessions(sessionRows);
   renderSessionMatrix(sessionRows);
@@ -268,6 +269,11 @@ $('apply').onclick=()=>{const seconds=Number($('interval').value);if(!Number.isI
 let resizeTimer;
 new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(data)render(false);},120);}).observe($('chart-wrap'));
 $('show-sessions').addEventListener('change',()=>renderSessions());
+try{$('native-tps').checked=localStorage.getItem('tokenscope-native-tps')!=='false';}catch(error){console.warn('TPS preference unavailable',error);}
+$('native-tps').addEventListener('change',()=>{
+  try{localStorage.setItem('tokenscope-native-tps',String($('native-tps').checked));}catch(error){console.warn('TPS preference not saved',error);}
+  renderSessions(false);
+});
 $('matrix-palette').addEventListener('change',()=>renderSessionMatrix(filtered(visibleSessionRows(data?.session_rows||[]))));
 $('session-sort').addEventListener('change',()=>renderSessions());
 $('session-more').onclick=()=>{sessionLimit+=50;renderSessions(false);};

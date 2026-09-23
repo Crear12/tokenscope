@@ -62,7 +62,7 @@ def public_data(folder):
                                         {'session_title': row.get('session_title', ''), 'hours': json.loads(row.get('hours') or '{}')} |
                                         {k: int(row[k]) for k in ('requests', 'fresh_input_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'output_tokens')} |
                                         {'tokens': int(row['total_tokens'])} |
-                                        {k: float(row.get(k) or 0) for k in ('tps_count', 'tps_sum', 'tps_max')})
+                                        {k: float(row.get(k) or 0) for k in ('tps_count', 'tps_sum', 'tps_max', 'native_tps_count', 'native_tps_sum', 'native_tps_max')})
     return {'generated_at': summary['generated_at_utc'], 'rows': rows, 'session_rows': session_rows,
             'sources': {name: {'collected_at': a['collected_at'], 'timezone': a['timezone']}
                         for name, a in summary['sources'].items()},

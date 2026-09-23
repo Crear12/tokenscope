@@ -24,6 +24,8 @@
 <h2>Per-session token usage</h2>
 <p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>
 <p id="session-coverage" role="status"></p>
+<label><input id="native-tps" type="checkbox" checked>Include Codex native-log TPS estimates</label>
+<p>≈ includes Codex estimates: output tokens divided by the logged user/tool-input-to-generated-output window, not the whole turn. Completed tool execution and gaps between turns are excluded; client scheduling and time to first token can remain. Only unique exact session, usage timestamp and token-count matches are used. Missing boundaries stay unavailable. This switch affects TPS only and is saved in this browser.</p>
 <p>TPS = output tokens / recorded response seconds (duration_ms, otherwise latency_ms), including time to first token. Average is the arithmetic mean of successful timed response rates; maximum is the fastest response rate, not peak streaming speed. Session idle time and input/cache tokens are not used. Untimed or zero-output responses are excluded; — means unavailable. Date and model filters apply.</p>
 <h3 id="matrix-title">Temporal Session Token Usage</h3>
 <p>Smooth colors interpolate between adjacent recorded time buckets, not additional measured activity. Gaps stay blank. Hover or focus for exact bucket totals. Includes input, cache and output tokens; historical rollups without session detail are excluded.</p>

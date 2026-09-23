@@ -170,7 +170,108 @@ def enrich_session_providers(rows, roots):
             'sessions_unmatched': len(wanted - providers.keys())}
 
 
-def collect(database, session_roots=None, codex_home='~/.codex', claude_projects='~/.claude/projects'):
+def enrich_codex_timing(rows, roots):
+    """Exact usage-event join; derive input-to-output windows, never session age.
+
+    These are client-log estimates (including scheduling/TTFT), not server timers.
+    Tool results start the next window; tool calls end the current window.
+    Only a unique session/second/token signature is accepted. No nearest-time join.
+    """
+    wanted = {r.get('session_id') for r in rows if r.get('data_source') == 'codex_session'} - {None, ''}
+    candidates = {}
+    inspected = malformed = 0
+
+    def signature(sid, stamp, usage):
+        return (sid, int(stamp), usage.get('input_tokens'), usage.get('output_tokens'),
+                usage.get('cached_input_tokens', 0))
+
+    for root in roots:
+        for path in pathlib.Path(root).expanduser().glob('**/*.jsonl'):
+            if path.stem[-36:] not in wanted:
+                continue
+            with path.open(encoding='utf-8') as stream:
+                header = json.loads(stream.readline())
+                sid = header.get('payload', {}).get('id')
+                if header.get('type') != 'session_meta' or sid not in wanted:
+                    continue
+                inspected += 1
+                last_input = start = end = pending = None
+                calls = set()
+                for line in stream:
+                    if not line.strip():
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        # An active writer can leave an incomplete final line.
+                        if not line.endswith('\n'):
+                            malformed += 1
+                            break
+                        raise
+                    kind, p = entry.get('type'), entry.get('payload', {})
+                    typ = p.get('type')
+                    stamp = datetime.datetime.fromisoformat(entry['timestamp'].replace('Z', '+00:00')).timestamp()
+                    if kind == 'event_msg' and typ in ('task_started', 'task_complete', 'turn_aborted'):
+                        last_input = start = end = pending = None
+                        calls.clear()
+                    elif kind == 'compacted':
+                        last_input = start = end = pending = None
+                        calls.clear()
+                    elif kind == 'response_item':
+                        if (typ == 'message' and p.get('role') == 'user') or typ in ('function_call_output', 'custom_tool_call_output'):
+                            calls.discard(p.get('call_id'))
+                            last_input = stamp if not calls else None
+                        elif typ in ('reasoning', 'function_call', 'custom_tool_call') or (typ == 'message' and p.get('role') == 'assistant'):
+                            if start is None:
+                                start = last_input if not calls else None
+                            end = stamp
+                            if typ in ('function_call', 'custom_tool_call'):
+                                calls.add(p.get('call_id'))
+                    elif kind == 'token_usage_record':
+                        duration = (end - start) * 1000 if start is not None and end is not None and end > start else None
+                        pending = (p.get('usage', {}), duration)
+                        # Preserve input that arrived after output; otherwise require
+                        # an explicit new input boundary before another sample.
+                        if end is None or last_input is None or last_input <= end:
+                            last_input = None
+                        start = end = None
+                    elif kind == 'event_msg' and typ == 'token_count':
+                        usage = (p.get('info') or {}).get('last_token_usage')
+                        if not usage:
+                            continue
+                        if pending is not None:
+                            recorded, duration = pending
+                            if signature(sid, stamp, recorded) != signature(sid, stamp, usage):
+                                duration = None
+                            pending = None
+                        else:
+                            duration = (end - start) * 1000 if start is not None and end is not None and end > start else None
+                            if end is None or last_input is None or last_input <= end:
+                                last_input = None
+                            start = end = None
+                        key = signature(sid, stamp, usage)
+                        # Multiple source events with the same signature are ambiguous,
+                        # even if their durations happen to be equal.
+                        candidates.setdefault(key, []).append(duration)
+    matched = 0
+    row_counts = {}
+    for r in rows:
+        if r.get('data_source') == 'codex_session':
+            key = (r.get('session_id'), r['created_at'], r['input_tokens'], r['output_tokens'], r['cache_read_tokens'])
+            row_counts[key] = row_counts.get(key, 0) + 1
+    for r in rows:
+        if r.get('data_source') != 'codex_session':
+            continue
+        key = (r.get('session_id'), r['created_at'], r['input_tokens'], r['output_tokens'], r['cache_read_tokens'])
+        values = candidates.get(key, [])
+        if row_counts[key] == 1 and len(values) == 1 and values[0] is not None:
+            r['native_response_ms'] = values[0]
+            matched += 1
+    return {'enabled': True, 'files_read': inspected, 'requests_matched': matched,
+            'incomplete_tails_skipped': malformed}
+
+
+def collect(database, session_roots=None, codex_home='~/.codex', claude_projects='~/.claude/projects', codex_native_tps=True):
     path = pathlib.Path(database).expanduser().resolve()
     db = sqlite3.connect(path.as_uri() + '?mode=ro', uri=True, timeout=30)
     db.row_factory = sqlite3.Row
@@ -197,6 +298,8 @@ def collect(database, session_roots=None, codex_home='~/.codex', claude_projects
         row['date'] = dates[row['request_id']][:10]
         row['local_datetime'] = dates[row['request_id']]
     db.close()
+    roots = session_roots if session_roots is not None else ['~/.codex/sessions', '~/.codex/archived_sessions']
+    result['codex_timing'] = enrich_codex_timing(result['proxy_request_logs'], roots) if codex_native_tps else {'enabled': False}
     result['session_titles'] = enrich_session_titles(result['proxy_request_logs'], codex_home, claude_projects)
     result['session_metadata'] = enrich_session_providers(result['proxy_request_logs'],
         session_roots if session_roots is not None else ['~/.codex/sessions', '~/.codex/archived_sessions'])
