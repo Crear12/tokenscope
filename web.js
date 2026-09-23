@@ -73,6 +73,9 @@ function renderSessionMatrix(rows){
   root.append(grid);
   root.scrollTop=scrollTop;
 }
+function responseRateCells(s){
+  return [s.tps_count?s.tps_avg.toFixed(2):'—',s.tps_count?s.tps_max.toFixed(2):'—',`${s.tps_count||0} / ${s.requests}`];
+}
 function appendCells(body,values){const tr=element('tr');for(const value of values)tr.append(element('td',value));body.append(tr);}
 function renderSessionDetail(rows, groups){
   const panel=$('session-detail');
@@ -87,13 +90,16 @@ function renderSessionDetail(rows, groups){
     const card=element('div');card.append(element('span',label),element('strong',value));$('session-detail-summary').append(card);
   }
   const componentBody=$('session-component-body');componentBody.replaceChildren();
+  for(const [index,label] of ['Avg TPS','Max TPS','Timed responses'].entries()){
+    const card=element('div');card.append(element('span',t(label)),element('strong',responseRateCells(s)[index]));$('session-detail-summary').append(card);
+  }
   for(const [label,field] of [[t('Fresh input'),'fresh_input_tokens'],[t('Cache read'),'cache_read_tokens'],[t('Cache write'),'cache_creation_tokens'],[t('Output'),'output_tokens']]){
     const tokens=s[field],share=s.tokens?100*tokens/s.tokens:0;appendCells(componentBody,[label,tokens.toLocaleString(uiLocale()),`${share.toFixed(1)}%`]);
   }
   const dateBody=$('session-date-body');dateBody.replaceChildren();
-  for(const day of detail.daily)appendCells(dateBody,[day.value,day.models.join(', '),...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>day[field].toLocaleString(uiLocale())),money(day.cost)]);
+  for(const day of detail.daily)appendCells(dateBody,[day.value,day.models.join(', '),...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>day[field].toLocaleString(uiLocale())),money(day.cost),...responseRateCells(day)]);
   const modelBody=$('session-model-body');modelBody.replaceChildren();
-  for(const model of detail.models)appendCells(modelBody,[model.value,...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>model[field].toLocaleString(uiLocale())),money(model.cost)]);
+  for(const model of detail.models)appendCells(modelBody,[model.value,...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(field=>model[field].toLocaleString(uiLocale())),money(model.cost),...responseRateCells(model)]);
 }
 function renderSessions(resetLimit=true){
   if(resetLimit)sessionLimit=50;
@@ -120,7 +126,7 @@ function renderSessions(resetLimit=true){
   for(const s of groups.slice(0,sessionLimit)){
     const key=sessionIdentity(s),tr=element('tr');if(key===activeSessionKey)tr.className='session-active';const title=element('td'),open=element('button',s.title||t('Title unavailable'),'session-open');open.type='button';open.title=s.title||t('No saved conversation title matches this source record.');open.setAttribute('aria-expanded',String(key===activeSessionKey));open.onclick=()=>openSession(key);title.append(open);tr.append(title);
     const values=[s.first===s.last?s.first:`${s.first} → ${s.last}`,`${s.host} / ${s.app}`,s.models.join(', '),
-      ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString(uiLocale())),money(s.cost)];
+      ...['fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens','tokens','requests'].map(k=>s[k].toLocaleString(uiLocale())),money(s.cost),...responseRateCells(s)];
     for(const value of values)tr.append(element('td',value));$('session-body').append(tr);
   }
   $('session-more').hidden=groups.length<=sessionLimit;

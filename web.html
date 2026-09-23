@@ -24,6 +24,7 @@
 <h2>Per-session token usage</h2>
 <p>Only usage inside the selected dates and models. Conversation names are saved Codex / Claude Code titles. Identically named sessions remain separate; some source records have no matching saved title.</p>
 <p id="session-coverage" role="status"></p>
+<p>TPS = output tokens / recorded response seconds (duration_ms, otherwise latency_ms), including time to first token. Average is the arithmetic mean of successful timed response rates; maximum is the fastest response rate, not peak streaming speed. Session idle time and input/cache tokens are not used. Untimed or zero-output responses are excluded; — means unavailable. Date and model filters apply.</p>
 <h3 id="matrix-title">Temporal Session Token Usage</h3>
 <p>Smooth colors interpolate between adjacent recorded time buckets, not additional measured activity. Gaps stay blank. Hover or focus for exact bucket totals. Includes input, cache and output tokens; historical rollups without session detail are excluded.</p>
 <div id="matrix-legend"></div>
@@ -32,15 +33,15 @@
 <p id="matrix-detail" role="status">Hover or focus a colored cell for its title, date and exact token count.</p>
 <label>Sort by <select id="session-sort"><option value="tokens">Total tokens (highest first)</option><option value="cost">Estimated cost (highest first)</option><option value="latest">Latest selected activity</option></select></label>
 <div class="session-scroll" tabindex="0" role="region" aria-label="Session details table, scroll horizontally for all columns">
-<table id="session-table"><thead><tr><th scope="col">Conversation</th><th scope="col">Selected activity</th><th scope="col">Machine / app</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total tokens</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-body"></tbody></table>
+<table id="session-table"><thead><tr><th scope="col">Conversation</th><th scope="col">Selected activity</th><th scope="col">Machine / app</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total tokens</th><th scope="col">Requests</th><th scope="col">Est. USD</th><th scope="col">Avg TPS</th><th scope="col">Max TPS</th><th scope="col">Timed responses</th></tr></thead><tbody id="session-body"></tbody></table>
 </div><p id="session-empty" hidden>No identified sessions match these filters.</p>
 <button id="session-more" hidden>Show 50 more sessions</button>
 <section id="session-detail" class="session-detail" hidden aria-live="polite">
 <div class="session-detail-heading"><div><h3 id="session-detail-title">Session detail</h3><p id="session-detail-meta"></p></div><button id="session-detail-close" type="button">Close detail</button></div>
 <div id="session-detail-summary" class="session-summary" aria-label="Selected session summary"></div>
 <h4>Token components</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Component</th><th scope="col">Tokens</th><th scope="col">Share of session</th></tr></thead><tbody id="session-component-body"></tbody></table></div>
-<h4>By date</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Date</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-date-body"></tbody></table></div>
-<h4>By model</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Model</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th></tr></thead><tbody id="session-model-body"></tbody></table></div>
+<h4>By date</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Date</th><th scope="col">Models</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th><th scope="col">Avg TPS</th><th scope="col">Max TPS</th><th scope="col">Timed responses</th></tr></thead><tbody id="session-date-body"></tbody></table></div>
+<h4>By model</h4><div class="session-scroll"><table class="detail-table"><thead><tr><th scope="col">Model</th><th scope="col">Fresh input</th><th scope="col">Cache read</th><th scope="col">Cache write</th><th scope="col">Output</th><th scope="col">Total</th><th scope="col">Requests</th><th scope="col">Est. USD</th><th scope="col">Avg TPS</th><th scope="col">Max TPS</th><th scope="col">Timed responses</th></tr></thead><tbody id="session-model-body"></tbody></table></div>
 <p>Detail follows the active date and model filters. Cost is the recorded total estimate; the source does not attribute it separately to input, cache, and output.</p>
 </section>
 </section>

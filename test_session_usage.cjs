@@ -41,6 +41,20 @@ const rows = [
   {...base,date:'2026-02-02',model:'a',app:'Claude Code'},
 ];
 const all = new Set(['a','b']);
+const rateRows=[
+  {...base,date:'2026-09-01',model:'a',tps_count:2,tps_sum:80,tps_max:50},
+  {...base,date:'2026-09-02',model:'b',tps_count:1,tps_sum:10,tps_max:10},
+  {...base,date:'2026-09-03',model:'a'}, // legacy cache is unavailable, not zero TPS
+];
+const rateSession=summarizeSessions(rateRows)[0];
+assert.equal(rateSession.tps_avg,30);
+assert.equal(rateSession.tps_max,50);
+assert.equal(rateSession.tps_count,3);
+assert.equal(summarizeSessions([rateRows[2]])[0].tps_avg,null);
+assert.equal(summarizeSessions(filterUsageRows(rateRows,'2026-09-02','2026-09-02',new Set(['b'])))[0].tps_avg,10);
+const rateDetails=sessionDetails(rateRows,JSON.stringify(['workstation','Codex','one']));
+assert.equal(rateDetails.daily[0].tps_avg,40);
+assert.equal(rateDetails.models.find(r=>r.value==='a').tps_avg,40);
 const {visibleSessionRows} = require('./session_usage.js');
 const rejectedRow={...base,model:'claude-haiku-4-5',date:'2026-09-18',tokens:0,cost_usd:'0',requests:1};
 const candidates=[

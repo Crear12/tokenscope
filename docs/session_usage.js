@@ -55,6 +55,12 @@ function visibleSessionRows(rows) {
     .map(sessionIdentity));
   return rows.filter(row => !rejected.has(sessionIdentity(row)));
 }
+function mergeResponseRates(group,row){
+  group.tps_count=(group.tps_count||0)+(row.tps_count||0);
+  group.tps_sum=(group.tps_sum||0)+(row.tps_sum||0);
+  group.tps_max=Math.max(group.tps_max||0,row.tps_max||0);
+  group.tps_avg=group.tps_count?group.tps_sum/group.tps_count:null;
+}
 function summarizeSessions(rows) {
   const groups = new Map();
   const fields = ['tokens','requests','fresh_input_tokens','cache_read_tokens','cache_creation_tokens','output_tokens'];
@@ -67,6 +73,7 @@ function summarizeSessions(rows) {
     s.last = s.last > r.date ? s.last : r.date;
     s.models.add(r.model); s.cost += Number(r.cost_usd);
     for (const f of fields) s[f] += r[f];
+    mergeResponseRates(s,r);
   }
   return [...groups.values()].map(s=>({...s,models:[...s.models].sort()}));
 }
@@ -82,6 +89,7 @@ function sessionDetails(rows, key) {
       const group = groups.get(value);
       group.models.add(r.model); group.cost += Number(r.cost_usd);
       for (const field of fields) group[field] += r[field];
+      mergeResponseRates(group,r);
     }
     return [...groups.values()].map(group => ({...group,models:[...group.models].sort()}));
   };

@@ -62,6 +62,14 @@ The animated demo is an HTML page; GitHub's README itself does not execute JavaS
 
 ## Quick start
 
+Per-session tables and drill-downs include average and maximum response TPS and timing
+coverage. Each rate is output tokens divided by recorded response seconds
+(`duration_ms`, otherwise `latency_ms`), including time to first token. Average TPS is
+the arithmetic mean of successful timed response rates; maximum is the fastest
+response average, not instantaneous streaming speed. Session idle gaps and input/cache
+tokens are excluded. Untimed, failed, and zero-output responses are excluded from TPS,
+not token accounting. Missing timing displays as unavailable, and date/model filters apply.
+
 Requires Python 3.9+ and an existing CC-Switch database.
 
 ```sh

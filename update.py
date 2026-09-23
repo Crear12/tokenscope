@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -103,6 +104,15 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+def response_duration_ms(row):
+    """Recorded per-request elapsed time only; never session wall-clock time."""
+    for field in ('duration_ms', 'latency_ms'):
+        value = row.get(field)
+        if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+            return value
+    return 0
+
+
 def build(sources, out, render_figures=True):
     out.mkdir(parents=True, exist_ok=True)
     totals = defaultdict(lambda: defaultdict(int))
@@ -157,6 +167,8 @@ def build(sources, out, render_figures=True):
             if grain == 'request' and r.get('session_key'):
                 st = session_totals[(r['date'], host, app, r['session_key'], model)]
                 st['requests'] += count
+                for field in ('tps_count', 'tps_sum', 'tps_max'):
+                    st.setdefault(field, 0)
                 st['session_title'] = r.get('session_title') or ''
                 local_time = r.get('local_datetime', '')
                 hour = local_time[11:13]
@@ -167,10 +179,14 @@ def build(sources, out, render_figures=True):
                 for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
                     st[field] += r[field]
                 st['cost_usd'] = st.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
-            duration = r.get('duration_ms') or r.get('latency_ms') or 0
+            duration = response_duration_ms(r)
             if grain == 'request' and duration > 0 and r['output_tokens'] > 0 and 200 <= r['status_code'] < 300:
-                samples.append({'date': r['date'], 'local_datetime': r.get('local_datetime', r['date']), 'host': host, 'app': app, 'provider': provider, 'model': model, 'created_at': r['created_at'], 'output_tokens': r['output_tokens'], 'duration_ms': duration, 'duration_source': 'duration_ms' if r.get('duration_ms') else 'latency_ms', 'tps': r['output_tokens'] / (duration / 1000)})
+                samples.append({'date': r['date'], 'local_datetime': r.get('local_datetime', r['date']), 'host': host, 'app': app, 'provider': provider, 'model': model, 'created_at': r['created_at'], 'output_tokens': r['output_tokens'], 'duration_ms': duration, 'duration_source': 'duration_ms' if r.get('duration_ms') == duration else 'latency_ms', 'tps': r['output_tokens'] / (duration / 1000)})
                 audit[host]['timed_requests'] += 1
+                if r.get('session_key'):
+                    st['tps_count'] += 1
+                    st['tps_sum'] += r['output_tokens'] * 1000 / duration
+                    st['tps_max'] = max(st['tps_max'], r['output_tokens'] * 1000 / duration)
     daily = []
     for (date, host, app, provider, model, grain), t in sorted(totals.items()):
         row = dict(date=date, host=host, app=app, provider=provider, model=model, grain=grain, **t)
