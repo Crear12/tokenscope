@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and release (for example v0.1.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,6 +28,8 @@ jobs:
             arch: x86_64
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
@@ -30,12 +38,12 @@ jobs:
       - name: Build and package app
         run: bash scripts/build_macos_app.sh
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ inputs.tag || github.ref_name }}
           ARCH: ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
           name: TokenScope-macOS-${{ matrix.arch }}
-          path: release-output/TokenScope-${{ github.ref_name }}-macOS-${{ matrix.arch }}.zip
+          path: release-output/TokenScope-${{ inputs.tag || github.ref_name }}-macOS-${{ matrix.arch }}.zip
           if-no-files-found: error
 
   release:
@@ -53,5 +61,5 @@ jobs:
       - name: Create release and attach app downloads
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: gh release create "$TAG" release-assets/*.zip --title "TokenScope $TAG" --generate-notes
