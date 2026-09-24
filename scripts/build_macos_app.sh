@@ -3,6 +3,8 @@ set -euo pipefail
 
 VERSION="${VERSION:-}"
 ARCH="${ARCH:-}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT"
 if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "VERSION must be a semantic version such as v0.1.0" >&2
   exit 2
@@ -12,7 +14,7 @@ if [[ "$ARCH" != arm64 && "$ARCH" != x86_64 ]]; then
   exit 2
 fi
 RELEASE_VERSION="${VERSION#v}"
-BUILD_ROOT="build/macos-$ARCH"
+BUILD_ROOT="$PROJECT_ROOT/build/macos-$ARCH"
 DIST_DIR="$BUILD_ROOT/dist"
 APP_DIR="$BUILD_ROOT/TokenScope.app"
 APP_CONTENTS="$APP_DIR/Contents"
@@ -21,10 +23,10 @@ python -m PyInstaller \
   --noconfirm --clean --onedir --name TokenScopeServer \
   --distpath "$DIST_DIR" --workpath "$BUILD_ROOT/work" --specpath "$BUILD_ROOT" \
   --hidden-import update --hidden-import collect \
-  --add-data "app.py:." --add-data "update.py:." --add-data "collect.py:." \
-  --add-data "config.example.ini:." --add-data "web.html:." \
-  --add-data "web.js:." --add-data "session_usage.js:." \
-  --add-data "i18n.js:." --add-data "web.css:." \
+  --add-data "$PROJECT_ROOT/update.py:." --add-data "$PROJECT_ROOT/collect.py:." \
+  --add-data "$PROJECT_ROOT/config.example.ini:." --add-data "$PROJECT_ROOT/web.html:." \
+  --add-data "$PROJECT_ROOT/web.js:." --add-data "$PROJECT_ROOT/session_usage.js:." \
+  --add-data "$PROJECT_ROOT/i18n.js:." --add-data "$PROJECT_ROOT/web.css:." \
   app.py
 
 mkdir -p "$APP_CONTENTS/MacOS" "$APP_CONTENTS/Resources"
@@ -35,6 +37,6 @@ swiftc -O -framework AppKit -o "$APP_CONTENTS/MacOS/TokenScope" macos/launcher.s
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $RELEASE_VERSION" "$APP_CONTENTS/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $RELEASE_VERSION" "$APP_CONTENTS/Info.plist"
 
-mkdir -p release-output
+mkdir -p "$PROJECT_ROOT/release-output"
 ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" \
-  "release-output/TokenScope-$VERSION-macOS-$ARCH.zip"
+  "$PROJECT_ROOT/release-output/TokenScope-$VERSION-macOS-$ARCH.zip"
