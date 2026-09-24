@@ -33,7 +33,7 @@
 | **会话热力图** | 纵轴为会话标题、横轴为日期，以自适应 jet 色阶显示 Token 用量。 |
 | **会话详情** | 点击标题，展开 Token 构成、请求数、费用，以及按日期和模型划分的明细。 |
 | **本地与多机汇总** | 读取本机统计，或通过你自己的私有 SSH 配置读取远程机器。 |
-| **macOS 应用** | 从 GitHub Releases 下载 Apple 芯片或 Intel 版独立应用，无需本机配置 Python。 |
+| **桌面版下载** | 从 GitHub Releases 下载 Windows x64、Linux x64 或 macOS Apple 芯片/Intel 独立版本。 |
 | **可调刷新间隔** | 在网页中设置 5 秒至 10 分钟的刷新间隔，并按时钟边界执行。 |
 | **静态报告导出** | 生成 PNG/SVG 图表、CSV 表格以及 JSON/Markdown 汇总。 |
 
@@ -62,17 +62,27 @@ python -m http.server 8877 --bind 127.0.0.1 --directory docs
 
 ## 快速开始
 
-### macOS 应用
+### 桌面版应用
 
-从 [GitHub Releases](https://github.com/Crear12/tokenscope/releases) 下载
-**TokenScope-macOS-arm64**（Apple 芯片）或 **TokenScope-macOS-x86_64**（Intel）ZIP，
-解压后将 `TokenScope.app` 移入“应用程序”，打开即可启动看板并进入浏览器。
-点击 **Machine settings…** 可编辑私有的 `config.ini`。配置和刷新缓存保存在
-`~/Library/Application Support/TokenScope/`，不会写入应用包。关闭应用窗口会停止服务和正在执行的采集。
+从 [GitHub Releases](https://github.com/Crear12/tokenscope/releases) 下载适合系统的最新版本：
 
-由于 Developer ID 签名和公证需要加入 Apple 付费开发者计划，下载的应用未签名。
-macOS 首次打开时可能显示警告；确认信任下载后，可在 Finder 中按住 Control 并点击应用，
-再选择“打开”。公开仓库的 GitHub Actions 构建无需付费 GitHub 计划。
+- **macOS：** Apple 芯片下载 **TokenScope-macOS-arm64**，Intel 下载
+  **TokenScope-macOS-x86_64**。解压后将 `TokenScope.app` 移入“应用程序”并打开。
+  可用 **Machine settings…** 编辑私有配置；配置和缓存均保存在
+  `~/Library/Application Support/TokenScope/`。
+- **Windows x64：** 解压后双击 `launch-tokenscope.bat`。控制台会显示采集状态；
+  在控制台按 Ctrl+C 停止。配置保存在 `%APPDATA%\TokenScope\config.ini`，
+  缓存位于 `%LOCALAPPDATA%\TokenScope\output\`。
+- **Linux x64：** 解压 `.tar.gz` 后在终端运行 `./launch-tokenscope.sh`，
+  先进入解压得到的 `TokenScope-Linux-x86_64` 文件夹。按 Ctrl+C 停止。
+  配置和缓存使用 XDG 目录，默认分别为
+  `~/.config/tokenscope/` 和 `~/.cache/tokenscope/`。二进制在 Ubuntu 22.04 上构建，
+  需要兼容的 glibc。
+
+macOS 应用和 Windows 可执行文件均未签名。macOS 首次打开可能显示警告；
+确认信任后，可在 Finder 中按住 Control 并点击应用，再选择“打开”。
+Windows SmartScreen 也可能对未签名程序发出警告。macOS Developer ID 签名/公证
+需要加入 Apple 付费开发者计划。公开仓库的 GitHub Actions 构建无需付费 GitHub 计划。
 
 应用默认监听局域网，和 `python app.py` 一样没有登录验证或 TLS。仅在可信网络中使用；
 局域网其他设备可以查看看板并修改共享刷新间隔。

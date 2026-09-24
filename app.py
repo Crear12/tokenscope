@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+import webbrowser
 from urllib.parse import urlsplit
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
@@ -329,6 +330,8 @@ def main():
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--interval', type=int, default=300)
     parser.add_argument('--cache', type=Path, default=default_cache)
+    parser.add_argument('--open-browser', action='store_true',
+                        help='Open the local dashboard in the default browser after startup')
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--workdir', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -345,6 +348,11 @@ def main():
     print(f'LAN: http://<this-machine-LAN-IP>:{server.server_port}/ (trusted LAN only; no authentication).', flush=True)
     print('Ctrl+C stops the server and local collection/SSH processes.', flush=True)
     collector.thread.start()
+    if args.open_browser:
+        url = f'http://127.0.0.1:{server.server_port}/'
+        timer = threading.Timer(1, webbrowser.open, args=(url,))
+        timer.daemon = True
+        timer.start()
     try:
         server.serve_forever(poll_interval=.25)
     except KeyboardInterrupt:

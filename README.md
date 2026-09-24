@@ -34,7 +34,7 @@ and which model leads each month—without opening a statistics page on every ma
 | **Session heatmap** | Explore session titles by date with adaptive jet colors for token usage. |
 | **Session drill-down** | Click a title for token components, requests, cost, and date/model breakdowns. Shared filters apply throughout. |
 | **One or many machines** | Collect locally or read remote statistics through your own private SSH configuration. |
-| **macOS app** | Download a self-contained Apple silicon or Intel app from GitHub Releases; no local Python setup is needed. |
+| **Desktop downloads** | Get standalone Windows x64, Linux x64, or macOS Apple silicon/Intel builds from GitHub Releases. |
 | **Refresh on your terms** | Choose 5 seconds to 10 minutes in the browser, aligned to the clock. |
 | **Portable reports** | Generate PNG/SVG charts, CSV tables, and JSON/Markdown summaries. |
 
@@ -63,20 +63,30 @@ The animated demo is an HTML page; GitHub's README itself does not execute JavaS
 
 ## Quick start
 
-### macOS app
+### Desktop apps
 
-Download the latest **TokenScope-macOS-arm64** (Apple silicon) or
-**TokenScope-macOS-x86_64** (Intel) ZIP from
-[GitHub Releases](https://github.com/Crear12/tokenscope/releases), unzip it, and move
-`TokenScope.app` to Applications. Open it to start the dashboard in your browser.
-Use **Machine settings…** to edit your private `config.ini`; it and the refresh cache
-are stored under `~/Library/Application Support/TokenScope/`, outside the app bundle.
-Closing the app window stops the server and its active collection.
+Download the latest build for your system from
+[GitHub Releases](https://github.com/Crear12/tokenscope/releases):
 
-These downloads are unsigned because distributing a Developer ID-signed, notarized
-app requires Apple's paid developer program. macOS may show a first-open warning;
-use Finder's Control-click → **Open** if you trust the download. GitHub Actions builds
-for this public repository do not require a paid GitHub plan.
+- **macOS:** choose **TokenScope-macOS-arm64** for Apple silicon or
+  **TokenScope-macOS-x86_64** for Intel. Unzip and move `TokenScope.app` to Applications.
+  Open it to start the dashboard. **Machine settings…** edits the private config,
+  stored with the cache under `~/Library/Application Support/TokenScope/`.
+- **Windows x64:** unzip and double-click `launch-tokenscope.bat`. It keeps a console
+  open for collection status; press Ctrl+C there to stop. Settings are stored in
+  `%APPDATA%\TokenScope\config.ini`; the cache is under
+  `%LOCALAPPDATA%\TokenScope\output\`.
+- **Linux x64:** extract the `.tar.gz` and run `./launch-tokenscope.sh` in a terminal.
+  First enter the extracted `TokenScope-Linux-x86_64` folder. Press Ctrl+C to stop.
+  Config and cache use the XDG directories, defaulting to
+  `~/.config/tokenscope/` and `~/.cache/tokenscope/`. The binary is built on Ubuntu
+  22.04 and requires a compatible glibc.
+
+The macOS app and Windows executable are unsigned. macOS may show a first-open warning;
+if you trust the download, use Finder's Control-click → **Open**. Windows SmartScreen
+may also warn about an unsigned app. Developer ID signing/notarization for macOS
+requires Apple's paid developer program. GitHub Actions builds for this public repo
+do not require a paid GitHub plan.
 
 The app listens on the LAN by default, like `python app.py`: it has no login or TLS.
 Use it only on a trusted network; other LAN devices can view the dashboard and change

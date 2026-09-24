@@ -1,4 +1,4 @@
-name: Build macOS app releases
+name: Build desktop app releases
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag to build and release (for example v0.1.0)
+        description: Existing version tag to build and release (for example v0.2.0)
         required: true
         type: string
 
@@ -16,15 +16,23 @@ permissions:
 
 jobs:
   build:
-    name: Build macOS app (${{ matrix.arch }})
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - runner: macos-15
+            platform: macOS
             arch: arm64
           - runner: macos-15-intel
+            platform: macOS
+            arch: x86_64
+          - runner: windows-2025
+            platform: Windows
+            arch: x86_64
+          - runner: ubuntu-22.04
+            platform: Linux
             arch: x86_64
     steps:
       - uses: actions/checkout@v7
@@ -35,15 +43,23 @@ jobs:
           python-version: '3.11'
       - name: Install packager
         run: python -m pip install -r requirements-build.txt
-      - name: Build and package app
+      - name: Build macOS app
+        if: matrix.platform == 'macOS'
         run: bash scripts/build_macos_app.sh
         env:
           VERSION: ${{ inputs.tag || github.ref_name }}
           ARCH: ${{ matrix.arch }}
+      - name: Build Windows or Linux bundle
+        if: matrix.platform != 'macOS'
+        run: python scripts/build_portable.py
+        env:
+          VERSION: ${{ inputs.tag || github.ref_name }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
       - uses: actions/upload-artifact@v7
         with:
-          name: TokenScope-macOS-${{ matrix.arch }}
-          path: release-output/TokenScope-${{ inputs.tag || github.ref_name }}-macOS-${{ matrix.arch }}.zip
+          name: TokenScope-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release-output/TokenScope-${{ inputs.tag || github.ref_name }}-${{ matrix.platform }}-${{ matrix.arch }}.*
           if-no-files-found: error
 
   release:
@@ -59,10 +75,10 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: release-assets
-          pattern: TokenScope-macOS-*
+          pattern: TokenScope-*
           merge-multiple: true
       - name: Create release and attach app downloads
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag || github.ref_name }}
-        run: gh release create "$TAG" release-assets/*.zip --title "TokenScope $TAG" --generate-notes
+        run: gh release create "$TAG" release-assets/* --title "TokenScope $TAG" --generate-notes
