@@ -1,6 +1,9 @@
 *.ini
 !config.example.ini
 output/
+build/
+release-output/
+*.spec
 __pycache__/
 .venv/
 venv/

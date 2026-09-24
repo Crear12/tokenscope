@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import secrets
 import signal
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,7 +21,8 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+APP_SUPPORT = Path.home() / 'Library' / 'Application Support' / 'TokenScope'
 ASSETS = {'/': ('web.html', 'text/html'), '/web.js': ('web.js', 'text/javascript'),
           '/session_usage.js': ('session_usage.js', 'text/javascript'),
           '/i18n.js': ('i18n.js', 'text/javascript'),
@@ -187,8 +189,11 @@ class Collector:
             self.error = None
             self.cache.parent.mkdir(parents=True, exist_ok=True)
             self.workdir = tempfile.TemporaryDirectory(prefix='usage-web-refresh-')
-            command = [sys.executable, str(ROOT / 'app.py'), '--worker',
-                       '--config', str(self.config), '--cache', str(self.cache), '--workdir', self.workdir.name]
+            command = [sys.executable]
+            if not getattr(sys, 'frozen', False):
+                command.append(str(ROOT / 'app.py'))
+            command += ['--worker', '--config', str(self.config), '--cache', str(self.cache),
+                        '--workdir', self.workdir.name]
             self.process = subprocess.Popen(command, start_new_session=os.name == 'posix')
             return True
 
@@ -309,12 +314,21 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    if getattr(sys, 'frozen', False) and sys.platform == 'darwin':
+        APP_SUPPORT.mkdir(parents=True, exist_ok=True)
+        default_config = APP_SUPPORT / 'config.ini'
+        if not default_config.exists():
+            shutil.copy2(ROOT / 'config.example.ini', default_config)
+        default_cache = APP_SUPPORT / 'output' / 'web.json'
+    else:
+        default_config = ROOT / 'config.ini'
+        default_cache = ROOT / 'output' / 'web.json'
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', type=Path, default=ROOT / 'config.ini')
+    parser.add_argument('--config', type=Path, default=default_config)
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--interval', type=int, default=300)
-    parser.add_argument('--cache', type=Path, default=ROOT / 'output/web.json')
+    parser.add_argument('--cache', type=Path, default=default_cache)
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--workdir', type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()

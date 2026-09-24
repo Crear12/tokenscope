@@ -34,6 +34,7 @@ and which model leads each month—without opening a statistics page on every ma
 | **Session heatmap** | Explore session titles by date with adaptive jet colors for token usage. |
 | **Session drill-down** | Click a title for token components, requests, cost, and date/model breakdowns. Shared filters apply throughout. |
 | **One or many machines** | Collect locally or read remote statistics through your own private SSH configuration. |
+| **macOS app** | Download a self-contained Apple silicon or Intel app from GitHub Releases; no local Python setup is needed. |
 | **Refresh on your terms** | Choose 5 seconds to 10 minutes in the browser, aligned to the clock. |
 | **Portable reports** | Generate PNG/SVG charts, CSV tables, and JSON/Markdown summaries. |
 
@@ -61,6 +62,25 @@ Its deterministic generator reads only the dashboard's source assets—not real 
 The animated demo is an HTML page; GitHub's README itself does not execute JavaScript.
 
 ## Quick start
+
+### macOS app
+
+Download the latest **TokenScope-macOS-arm64** (Apple silicon) or
+**TokenScope-macOS-x86_64** (Intel) ZIP from
+[GitHub Releases](https://github.com/Crear12/tokenscope/releases), unzip it, and move
+`TokenScope.app` to Applications. Open it to start the dashboard in your browser.
+Use **Machine settings…** to edit your private `config.ini`; it and the refresh cache
+are stored under `~/Library/Application Support/TokenScope/`, outside the app bundle.
+Closing the app window stops the server and its active collection.
+
+These downloads are unsigned because distributing a Developer ID-signed, notarized
+app requires Apple's paid developer program. macOS may show a first-open warning;
+use Finder's Control-click → **Open** if you trust the download. GitHub Actions builds
+for this public repository do not require a paid GitHub plan.
+
+The app listens on the LAN by default, like `python app.py`: it has no login or TLS.
+Use it only on a trusted network; other LAN devices can view the dashboard and change
+its shared refresh interval.
 
 Codex native-log TPS estimates are **enabled by default**. Uncheck **Include Codex
 native-log TPS estimates** in the per-session section to hide them (saved per browser).

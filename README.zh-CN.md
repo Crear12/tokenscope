@@ -33,6 +33,7 @@
 | **会话热力图** | 纵轴为会话标题、横轴为日期，以自适应 jet 色阶显示 Token 用量。 |
 | **会话详情** | 点击标题，展开 Token 构成、请求数、费用，以及按日期和模型划分的明细。 |
 | **本地与多机汇总** | 读取本机统计，或通过你自己的私有 SSH 配置读取远程机器。 |
+| **macOS 应用** | 从 GitHub Releases 下载 Apple 芯片或 Intel 版独立应用，无需本机配置 Python。 |
 | **可调刷新间隔** | 在网页中设置 5 秒至 10 分钟的刷新间隔，并按时钟边界执行。 |
 | **静态报告导出** | 生成 PNG/SVG 图表、CSV 表格以及 JSON/Markdown 汇总。 |
 
@@ -60,6 +61,21 @@ python -m http.server 8877 --bind 127.0.0.1 --directory docs
 动画在演示网页中运行，GitHub README 本身不执行 JavaScript。
 
 ## 快速开始
+
+### macOS 应用
+
+从 [GitHub Releases](https://github.com/Crear12/tokenscope/releases) 下载
+**TokenScope-macOS-arm64**（Apple 芯片）或 **TokenScope-macOS-x86_64**（Intel）ZIP，
+解压后将 `TokenScope.app` 移入“应用程序”，打开即可启动看板并进入浏览器。
+点击 **Machine settings…** 可编辑私有的 `config.ini`。配置和刷新缓存保存在
+`~/Library/Application Support/TokenScope/`，不会写入应用包。关闭应用窗口会停止服务和正在执行的采集。
+
+由于 Developer ID 签名和公证需要加入 Apple 付费开发者计划，下载的应用未签名。
+macOS 首次打开时可能显示警告；确认信任下载后，可在 Finder 中按住 Control 并点击应用，
+再选择“打开”。公开仓库的 GitHub Actions 构建无需付费 GitHub 计划。
+
+应用默认监听局域网，和 `python app.py` 一样没有登录验证或 TLS。仅在可信网络中使用；
+局域网其他设备可以查看看板并修改共享刷新间隔。
 
 Codex 原生日志 TPS 估算默认开启。在单会话区域取消勾选
 **包含 Codex 原生日志 TPS 估算**即可关闭显示，选择保存在本浏览器。
