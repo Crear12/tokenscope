@@ -44,6 +44,21 @@ function availableUsageModels(rows, sessionRows, from, through) {
 function filterUsageRows(rows, from, through, selected) {
   return rows.filter(r => (!from || r.date >= from) && (!through || r.date <= through) && selected.has(r.model));
 }
+function chartBuckets(rows, hourly=false) {
+  const buckets=new Map();
+  if(hourly)for(let hour=0;hour<24;hour++){
+    const key=String(hour).padStart(2,'0')+':00';
+    buckets.set(key,{date:key,tokens:0,cost:0,models:new Map()});
+  }
+  for(const r of rows){
+    const key=hourly?(r.hour==='Unknown hour'?r.hour:r.hour+':00'):r.date;
+    if(!buckets.has(key))buckets.set(key,{date:key,tokens:0,cost:0,models:new Map()});
+    const bucket=buckets.get(key);
+    bucket.tokens+=r.tokens;bucket.cost+=Number(r.cost_usd);
+    bucket.models.set(r.model,(bucket.models.get(r.model)||0)+r.tokens);
+  }
+  return [...buckets.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
 function sessionIdentity(row) {
   return JSON.stringify([row.host,row.app,row.session_key]);
 }
@@ -171,4 +186,4 @@ function temporalRuns(dates, days) {
   });
   return runs;
 }
-if (typeof module !== 'undefined') module.exports = {withNativeTPS,availableUsageModels,visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};
+if (typeof module !== 'undefined') module.exports = {chartBuckets,withNativeTPS,availableUsageModels,visibleSessionRows,leaderPeriod,modelsInDateRange,matchingModels,filterUsageRows,sessionIdentity,summarizeSessions,sessionDetails,sessionMatrix,jetColor,temporalRuns,temporalColor};

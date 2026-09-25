@@ -1,4 +1,5 @@
 import unittest
+from collections import defaultdict
 from build_demo import synthetic_data
 
 
@@ -10,6 +11,16 @@ class SyntheticDemo(unittest.TestCase):
         self.assertEqual(len({r['date'] for r in data['rows']}), 90)
         self.assertEqual({r['model'] for r in data['rows']}, {'Atlas Code', 'Cedar Think', 'Orbit Local'})
         self.assertTrue(all(r['tokens'] > 0 and float(r['cost_usd']) >= 0 for r in data['rows']))
+        by_day_model = defaultdict(lambda: [0, 0.0])
+        for row in data['hourly_rows']:
+            key = row['date'], row['host'], row['model']
+            by_day_model[key][0] += row['tokens']
+            by_day_model[key][1] += float(row['cost_usd'])
+            self.assertIn(row['hour'], {'09', '14'})
+        for row in data['rows']:
+            tokens, cost = by_day_model[row['date'], row['host'], row['model']]
+            self.assertEqual(tokens, row['tokens'])
+            self.assertAlmostEqual(cost, float(row['cost_usd']))
 
     def test_monthly_leaders_change(self):
         data = synthetic_data()

@@ -120,6 +120,7 @@ def response_duration_ms(row):
 def build(sources, out, render_figures=True):
     out.mkdir(parents=True, exist_ok=True)
     totals = defaultdict(lambda: defaultdict(int))
+    hourly_totals = defaultdict(lambda: defaultdict(int))
     session_totals = defaultdict(lambda: defaultdict(int))
     samples = []
     audit = {}
@@ -156,18 +157,23 @@ def build(sources, out, render_figures=True):
                 matching_rollups += 1
             rollup_seen[signature] = host
         for r, count, grain in rows:
+            if grain == 'request':
+                local_time = datetime.fromtimestamp(r['created_at'])
+                r = dict(r, date=local_time.date().isoformat(),
+                         local_datetime=local_time.strftime('%Y-%m-%d %H:%M:%S'))
             app = 'Claude Code' if r['app_type'] in ('claude', 'claude-desktop') else r['app_type'].title()
             provider = names.get((r['provider_id'], r['app_type']), 'Session / provider unknown' if r['provider_id'].startswith('_') else 'Unresolved provider')
             if r.get('session_provider'):
                 provider = r['session_provider']
             model = canonical_model(r)
             key = (r['date'], host, app, provider, model, grain)
-            t = totals[key]
-            t['requests'] += count
-            t['fresh_input_tokens'] += fresh(r)
-            for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
-                t[field] += r[field]
-            t['cost_usd'] = t.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
+            hour = r['local_datetime'][11:13] if grain == 'request' else 'Unknown hour'
+            for t in (totals[key], hourly_totals[(r['date'], hour, host, app, provider, model, grain)]):
+                t['requests'] += count
+                t['fresh_input_tokens'] += fresh(r)
+                for field in ('output_tokens', 'cache_read_tokens', 'cache_creation_tokens'):
+                    t[field] += r[field]
+                t['cost_usd'] = t.get('cost_usd', Decimal(0)) + Decimal(str(r['total_cost_usd']))
             if grain == 'request' and r.get('session_key'):
                 st = session_totals[(r['date'], host, app, r['session_key'], model)]
                 st['requests'] += count
@@ -208,7 +214,7 @@ def build(sources, out, render_figures=True):
     summary = {'generated_at_utc': datetime.now(timezone.utc).isoformat(), 'sources': audit, 'cross_host_duplicates_removed': duplicates,
                'total_tokens': sum(r['total_tokens'] for r in daily), 'requests': sum(r['requests'] for r in daily),
                'timed_requests': len(samples), 'by_host_app': [], 'matching_cross_host_rollups_retained': matching_rollups,
-               'caveats': ['Dates follow each source host local day, matching CC-Switch. Historical rollups cannot be rebucketed.',
+               'caveats': ['Timestamped requests use the dashboard host local date and hour across all machines. Historical rollups lack timestamps, retain their source-local date, and appear under Unknown hour in the hourly chart.',
                            'Rollups and remaining requests are additive as in CC-Switch. Rollup cross-host overlap cannot be verified without original IDs.',
                            'Same request IDs across hosts are deduplicated; copied sessions with rewritten IDs may remain.',
                            'TPS is output tokens divided by recorded request duration (latency fallback), NOT the previous user-turn metric. Missing timings are excluded.',
@@ -229,6 +235,13 @@ def build(sources, out, render_figures=True):
             selected = [r for r in daily if r['host'] == host and r['app'] == app]
             summary['by_host_app'].append(dict(host=host, app=app, tokens=sum(r['total_tokens'] for r in selected), requests=sum(r['requests'] for r in selected), start=min(r['date'] for r in selected), end=max(r['date'] for r in selected)))
     write_csv(out / 'daily_usage.csv', daily)
+    hourly = []
+    for (date, hour, host, app, provider, model, grain), t in sorted(hourly_totals.items()):
+        item = dict(date=date, hour=hour, host=host, app=app, provider=provider, model=model, grain=grain, **t)
+        item['total_tokens'] = sum(t[k] for k in ('fresh_input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens'))
+        item['cost_usd'] = str(item['cost_usd'])
+        hourly.append(item)
+    write_csv(out / 'hourly_usage.csv', hourly)
     session_daily = []
     for (date, host, app, session_key, model), st in sorted(session_totals.items()):
         item = dict(date=date, host=host, app=app, session_key=session_key, model=model, **st)

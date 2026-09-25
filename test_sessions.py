@@ -1,5 +1,6 @@
 import unittest
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from test_usage import row
 from collect import enrich_session_providers
@@ -115,7 +116,8 @@ class SessionDetails(unittest.TestCase):
     def test_session_detail_grain_dedup_and_public_projection(self):
         from app import public_data
         requests = [row(request_id=str(i), provider_id='_session', date=date, model=model,
-                        session_key='hashed-id', session_title='Fictional example', total_cost_usd='0.10', local_datetime=date+' 09:30:00')
+                        session_key='hashed-id', session_title='Fictional example', total_cost_usd='0.10',
+                        created_at=int(datetime.fromisoformat(date+'T09:30:00').timestamp()), local_datetime=date+' 09:30:00')
                     for i, (date, model) in enumerate([('2026-01-31', 'a'), ('2026-02-01', 'a'), ('2026-02-01', 'b')])]
         requests.append(row(request_id='no-session', provider_id='_session', date='2026-02-01', total_cost_usd='0.20'))
         rollup = row(provider_id='_session', date='2026-01-01', request_count=10, total_cost_usd='1')

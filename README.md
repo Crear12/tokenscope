@@ -28,7 +28,7 @@ and which model leads each month—without opening a statistics page on every ma
 
 | See it | Do it |
 | :--- | :--- |
-| **Daily tokens + cost** | Compare model-colored token bars with a daily estimated-USD line. |
+| **Daily / hourly tokens + cost** | Compare model-colored token bars with an estimated-USD line; selecting one day switches to hourly slots. |
 | **Period-aware model leaders** | Read the top model, token share, and its cost for a day, seven-day week, full month, or custom range directly on the chart. |
 | **Focused exploration** | Narrow the date range and select one or several model names. |
 | **Session heatmap** | Explore session titles by date with adaptive jet colors for token usage. |
@@ -218,7 +218,7 @@ python -m unittest discover -s . -p 'test_*.py'
 
 Matplotlib is required only for static charts. Outputs overwrite fixed filenames
 under `output/local/` for one source or `output/overall/` for multiple sources:
-token/cost PNG and SVG charts, a machines chart, daily CSV, diagnostic request TPS
+token/cost PNG and SVG charts, a machines chart, daily and hourly CSVs, diagnostic request TPS
 CSV, and JSON/Markdown summaries. TPS is not plotted. All configured sources must
 succeed; failures are reported rather than presenting partial results as complete.
 
@@ -229,7 +229,9 @@ succeed; failures are reported rather than presenting partial results as complet
   available in this schema and are not added as an estimate.
 - Costs are recorded CC-Switch USD estimates, not invoices or subscription fees.
   Zero recorded cost can mean missing pricing rather than free usage.
-- Dates follow each source's local calendar. Historical rollups cannot be rebucketed.
+- Timestamped requests from all machines use the dashboard host's local date and hour.
+  Historical date-only rollups keep their source-local date and appear under
+  **Unknown hour** when one day is selected; they cannot be rebucketed precisely.
 - Matching imported session/proxy rows are deduplicated using app, model, token
   counts and a 600-second window. Identical cross-host request IDs count once;
   conflicting values fail. Rollups lack original IDs and may overlap across hosts.

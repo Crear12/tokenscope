@@ -1,4 +1,14 @@
 const assert = require('node:assert/strict');
+const {chartBuckets}=require('./session_usage.js');
+const hourlyBuckets=chartBuckets([{hour:'02',model:'a',tokens:100,cost_usd:'0.25'},
+  {hour:'02',model:'b',tokens:50,cost_usd:'0.10'},
+  {hour:'Unknown hour',model:'a',tokens:20,cost_usd:'0.05'}],true);
+assert.equal(hourlyBuckets.length,25);
+assert.equal(hourlyBuckets[2].date,'02:00');
+assert.equal(hourlyBuckets[2].tokens,150);
+assert.equal(hourlyBuckets[2].cost,0.35);
+assert.equal(hourlyBuckets.at(-1).date,'Unknown hour');
+assert.equal(hourlyBuckets.at(-1).tokens,20);
 const {withNativeTPS}=require('./session_usage.js');
 const rates=[{tps_count:2,tps_sum:80,tps_max:50,native_tps_count:1,native_tps_sum:100,native_tps_max:100,tokens:123,requests:4}];
 const enabled=withNativeTPS(rates)[0],disabled=withNativeTPS(rates,false)[0];

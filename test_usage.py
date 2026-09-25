@@ -1,6 +1,8 @@
 import unittest
 import tempfile
 import json
+import csv
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 from update import fresh, effective, build, canonical_model, monthly_leaders
@@ -13,6 +15,8 @@ def row(**kw):
              input_token_semantics=0, status_code=200, created_at=1000,
              model='model', data_source='codex_session')
     r.update(kw)
+    if 'date' in kw and 'created_at' not in kw:
+        r['created_at'] = int(datetime.fromisoformat(kw['date'] + 'T12:00:00').timestamp())
     return r
 
 
@@ -131,6 +135,28 @@ class Accounting(unittest.TestCase):
         self.assertEqual(result['matching_cross_host_rollups_retained'], 1)
         self.assertEqual(result['requests'], 7)
         self.assertEqual(result['total_tokens'], 3 * (400 + 600 + 100 + 20))
+
+    def test_request_dates_and_hours_follow_dashboard_host(self):
+        instant = int(datetime(2026, 1, 1, 23, 30).timestamp())
+        request = row(request_id='remote-request', provider_id='_session',
+                      created_at=instant, date='2026-01-02', local_datetime='2026-01-02 08:30:00',
+                      total_cost_usd='0.25', session_key='session')
+        rollup = row(provider_id='_session', date='2026-01-02', request_count=2,
+                     total_cost_usd='0.50')
+        data = dict(collected_at='2026-01-03', host_timezone='Asia/Shanghai', providers=[],
+                    proxy_request_logs=[request], usage_daily_rollups=[rollup])
+        with tempfile.TemporaryDirectory() as directory, patch('update.render'):
+            build([('remote', data)], Path(directory))
+            with (Path(directory) / 'hourly_usage.csv').open(newline='') as source:
+                hourly = list(csv.DictReader(source))
+            with (Path(directory) / 'session_daily_usage.csv').open(newline='') as source:
+                sessions = list(csv.DictReader(source))
+        self.assertEqual({(r['date'], r['hour'], r['grain']) for r in hourly},
+                         {('2026-01-01', '23', 'request'), ('2026-01-02', 'Unknown hour', 'rollup')})
+        self.assertEqual(sum(int(r['total_tokens']) for r in hourly), 2 * 1120)
+        self.assertEqual(sum(float(r['cost_usd']) for r in hourly), 0.75)
+        self.assertEqual(sessions[0]['date'], '2026-01-01')
+        self.assertEqual(json.loads(sessions[0]['hours']), {'23': 1120})
 
 
 if __name__ == '__main__':

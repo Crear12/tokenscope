@@ -16,7 +16,7 @@
 <div class="actions"><button id="all">Select all</button><button id="none">Clear selection</button></div><div id="models"></div></details>
 </section>
 <section class="metrics" aria-label="Filtered totals"><div><span>Total tokens</span><strong id="tokens">—</strong></div><div><span>Recorded estimated cost</span><strong id="cost">—</strong></div><div><span>Requests</span><strong id="requests">—</strong></div><div><span>Selected models</span><strong id="count">—</strong></div></section>
-<section class="chart-card"><h2>Daily tokens and cost</h2><p class="key">Colored bars: tokens by model, left axis. <b>Black line: daily total estimated USD, right axis.</b></p>
+<section class="chart-card"><h2 id="usage-chart-title">Daily tokens and cost</h2><p class="key">Colored bars: tokens by model, left axis. <b id="usage-cost-key">Black line: daily total estimated USD, right axis.</b></p>
 <div id="chart-wrap"><svg id="chart" role="img" aria-label="Daily tokens by model with daily estimated cost line"></svg></div><p id="empty" hidden>No usage matches these filters.</p>
 <div id="tooltip" role="status" hidden></div></section>
 <section><h2 id="leaders-title">Monthly leading model</h2><p>Most tokens within the selected dates and models, including cache. Costs below belong to that model, not all models.</p><div id="leaders"></div></section>
@@ -47,6 +47,6 @@
 <p>Detail follows the active date and model filters. Cost is the recorded total estimate; the source does not attribute it separately to input, cache, and output.</p>
 </section>
 </section>
-<details class="source"><summary>Sources, freshness & definitions</summary><div id="sources"></div><ul id="caveats"></ul><p>Recorded costs are estimates, not invoices or subscription fees. Zero cost can mean missing pricing. Dates follow each source machine’s local calendar. Incomplete months use available days.</p></details>
+<details class="source"><summary>Sources, freshness & definitions</summary><div id="sources"></div><ul id="caveats"></ul><p>Recorded costs are estimates, not invoices or subscription fees. Zero cost can mean missing pricing. Timestamped requests are aligned to the dashboard host’s local time. Historical rollups keep their source-local date. Incomplete months use available days.</p></details>
 <footer>TokenScope · MIT licensed · This public demo contains no real usage. All interactions run in your browser. Animation respects reduced-motion preferences. Run the Python app locally to collect your own statistics.</footer>
 </main></body></html>

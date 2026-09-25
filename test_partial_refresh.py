@@ -36,6 +36,7 @@ class PartialRefreshTests(unittest.TestCase):
             self.assertEqual(first['data']['sources']['c']['status'], 'unavailable')
             second = run({'a':source('a','new',30),'b':offline,'c':offline})
             self.assertEqual({r['host']:r['tokens'] for r in second['data']['rows']}, {'a':30,'b':20})
+            self.assertEqual(sum(r['tokens'] for r in second['data']['hourly_rows']), 50)
             self.assertEqual(second['data']['sources']['b']['collected_at'], 'old')
             self.assertEqual(second['data']['sources']['b']['status'], 'stale')
             self.assertEqual(second['data']['sources']['a']['status'], 'fresh')
@@ -49,6 +50,7 @@ class PartialRefreshTests(unittest.TestCase):
             cache.write_text(json.dumps({'config_hash':fingerprint,'data':recovered['data']}))
             legacy = run({'a':source('a','latest',70),'b':offline,'c':offline})
             self.assertEqual(sum(r['tokens'] for r in legacy['data']['rows']),180)
+            self.assertEqual(sum(r['tokens'] for r in legacy['data']['hourly_rows']),180)
             self.assertTrue(any('deduplication' in w for w in legacy['data']['warnings']))
 
     def test_first_run_all_offline(self):

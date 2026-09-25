@@ -35,7 +35,7 @@ function renderSessionMatrix(rows){
   legend.append(element('span',`${matrix.min.toLocaleString(uiLocale())} tokens`),bar,element('span',`${matrix.max.toLocaleString(uiLocale())} tokens`),element('span',bilingual(`Jet · adaptive linear range of observed cells · ${matrix.sessions.length.toLocaleString(uiLocale())} sessions × ${matrix.dates.length} ${matrix.dates.length===1?'day':'days'}`,`Jet · 有记录单元格的自适应线性色阶 · ${matrix.sessions.length.toLocaleString(uiLocale())} 个会话 × ${matrix.dates.length} 天`)));
   if(matrix.min===matrix.max)legend.append(element('span',t('All observed cells are equal (midpoint color).')));
   if(hourly){
-    legend.children[3].textContent=bilingual(`Jet · adaptive range · ${matrix.sessions.length} sessions × 24 hours · source-local time`,`Jet · 自适应色阶 · ${matrix.sessions.length} 个会话 × 24 小时 · 来源机器本地时间`);
+    legend.children[3].textContent=bilingual(`Jet · adaptive range · ${matrix.sessions.length} sessions × 24 hours · dashboard host local time`,`Jet · 自适应色阶 · ${matrix.sessions.length} 个会话 × 24 小时 · 仪表板主机本地时间`);
     if(matrix.dates.includes('Unknown hour'))legend.append(element('span',bilingual('Unknown hour: older records lack timestamps; refresh collection to resolve where available.','未知小时：旧记录缺少时间戳；刷新采集以恢复可用的时间信息。')));
   }
   const grid=element('div',undefined,'matrix-grid');grid.style.width='100%';grid.style.gridTemplateColumns=`${labelWidth}px minmax(0,1fr)`;
@@ -144,6 +144,10 @@ function modelControls(){
 }
 function render(resetLimit=true){
   const period=leaderPeriod($('from').value,$('through').value);
+  const hourly=period.unit==='day' && $('from').value===$('through').value && Array.isArray(data?.hourly_rows) && data.hourly_rows.length>0;
+  $('usage-chart-title').textContent=hourly?bilingual('Hourly tokens and cost','每小时 Token 与费用'):bilingual('Daily tokens and cost','每日 Token 与费用');
+  $('usage-cost-key').textContent=hourly?bilingual('Black line: hourly total estimated USD, right axis.','黑色折线：每小时预估总费用（美元），右轴。'):bilingual('Black line: daily total estimated USD, right axis.','黑色折线：每日预估总费用（美元），右轴。');
+  $('chart').setAttribute('aria-label',hourly?'Hourly tokens by model with hourly estimated cost line':'Daily tokens by model with daily estimated cost line');
   const titles={day:'Daily leading model',week:'Weekly leading model',month:'Monthly leading model',range:'Selected-range leading model'};
   $('leaders-title').textContent=bilingual(titles[period.unit],{day:'当日领先模型',week:'所选7天领先模型',month:'月度领先模型',range:'所选时段领先模型'}[period.unit]);
   const rows=filtered(), available=availableModels(), selectedCount=[...available].filter(model=>selected.has(model)).length;
@@ -156,10 +160,8 @@ function render(resetLimit=true){
   $('count').textContent=new Set(rows.map(r=>r.model)).size;
   $('empty').hidden=rows.length>0;$('chart-wrap').hidden=!rows.length;$('leaders').replaceChildren();$('tooltip').hidden=true;
   if(!rows.length){$('leaders').append(element('p',t('No usage matches these filters.')));return;}
-  const days=new Map(),months=new Map();
+  const months=new Map();
   for(const r of rows){
-    if(!days.has(r.date))days.set(r.date,{date:r.date,tokens:0,cost:0,models:new Map()});
-    const d=days.get(r.date);d.tokens+=r.tokens;d.cost+=Number(r.cost_usd);d.models.set(r.model,(d.models.get(r.model)||0)+r.tokens);
     const month=period.monthly?r.date.slice(0,7):'';if(!months.has(month))months.set(month,new Map());const ms=months.get(month);
     const m=ms.get(r.model)||{tokens:0,cost:0};m.tokens+=r.tokens;m.cost+=Number(r.cost_usd);ms.set(r.model,m);
   }
@@ -174,16 +176,18 @@ function render(resetLimit=true){
       box.append(element('span',leader.label),element('strong',name),element('b',money(r.cost)+bilingual(' est.','（预估）')),element('span',leaderShare(leader)));$('leaders').append(box);
     }
   }
-  draw([...days.values()].sort((a,b)=>a.date.localeCompare(b.date)),leaders);
+  draw(chartBuckets(hourly?filtered(data.hourly_rows):rows,hourly),leaders,hourly);
 }
 function leaderShare(leader){
   const text=`${leader.share.toFixed(1)}% of ${leader.unit==='range'?'selected range':leader.unit} tokens`;
   return bilingual(text,`占${{day:'当日',week:'所选7天',month:'当月',range:'所选时段'}[leader.unit]} Token 的 ${leader.share.toFixed(1)}%`);
 }
-function draw(days,leaders){
+function draw(days,leaders,hourly=false){
   const chart=$('chart');chart.replaceChildren();const W=Math.max(820,$('chart-wrap').clientWidth),L=65,R=75,B=48;
-  const first=Date.parse(days[0].date+'T00:00:00Z'),last=Date.parse(days.at(-1).date+'T00:00:00Z'),span=Math.max(86400000,last-first+86400000);
-  const x=d=>L+(Date.parse(d+'T00:00:00Z')-first+43200000)/span*(W-L-R);
+  const first=hourly?0:Date.parse(days[0].date+'T00:00:00Z'),last=hourly?days.length-1:Date.parse(days.at(-1).date+'T00:00:00Z');
+  const span=hourly?days.length:Math.max(86400000,last-first+86400000);
+  const positions=new Map(days.map((d,i)=>[d.date,i]));
+  const x=d=>hourly?L+(positions.get(d)+.5)/span*(W-L-R):L+(Date.parse(d+'T00:00:00Z')-first+43200000)/span*(W-L-R);
   const laneEnds=[];
   const annotations=leaders.map(leader=>{
     const monthDays=days.filter(d=>d.date.startsWith(leader.month));
@@ -214,18 +218,23 @@ function draw(days,leaders){
     chart.append(svg('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'#e2e7ee'}),svg('text',{x:L-10,y:yy+4,'text-anchor':'end',fill:'#627181','font-size':12},compact(ymax*i/4)),svg('text',{x:W-R+10,y:yy+4,fill:'#627181','font-size':12},money(cmax*i/4)));
   }
   chart.append(svg('text',{x:L,y:T-12,fill:'#627181','font-size':12},t('Tokens')),svg('text',{x:W-R,y:T-12,'text-anchor':'end',fill:'#627181','font-size':12},t('Estimated USD')));
-  const width=Math.max(.6,Math.min(42,(W-L-R)/(span/86400000)*.8));
+  const width=Math.max(.6,Math.min(42,(W-L-R)/(hourly?span:span/86400000)*.8));
   for(const d of days){let base=0;for(const [name,tokens]of [...d.models].sort()){
     const bar=svg('rect',{x:x(d.date)-width/2,y:y(base+tokens),width,height:tokens/ymax*(H-T-B),fill:color(name),opacity:.7,tabindex:0,'aria-label':`${d.date}, ${name}: ${tokens.toLocaleString(uiLocale())} tokens`});
-    const tip=bilingual(`${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} tokens\nDay total: ${d.tokens.toLocaleString(uiLocale())} tokens · ${money(d.cost)} est.`,`${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} Token\n当日合计：${d.tokens.toLocaleString(uiLocale())} Token · ${money(d.cost)}（预估）`);
+    const tip=bilingual(`${hourly?$('from').value+' ':''}${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} tokens\n${hourly?'Hour':'Day'} total: ${d.tokens.toLocaleString(uiLocale())} tokens · ${money(d.cost)} est.`,`${hourly?$('from').value+' ':''}${d.date}\n${name}\n${tokens.toLocaleString(uiLocale())} Token\n${hourly?'每小时':'当日'}合计：${d.tokens.toLocaleString(uiLocale())} Token · ${money(d.cost)}（预估）`);
     const show=()=>{const bounds=bar.getBoundingClientRect(),card=$('tooltip').parentElement.getBoundingClientRect();$('tooltip').textContent=tip;$('tooltip').hidden=false;$('tooltip').style.left=Math.max(5,Math.min(bounds.left-card.left,card.width-335))+'px';$('tooltip').style.top=Math.max(45,bounds.top-card.top-100)+'px';};
     bar.addEventListener('mouseenter',show);bar.addEventListener('focus',show);bar.addEventListener('mouseleave',()=>$('tooltip').hidden=true);bar.addEventListener('blur',()=>$('tooltip').hidden=true);chart.append(bar);base+=tokens;
   }}
   let path='',previous=null;
-  for(const d of days){const t=Date.parse(d.date+'T00:00:00Z');path+=(previous!==null&&t-previous===86400000?' L':' M')+x(d.date)+' '+cy(d.cost);previous=t;}
+  for(const d of days){const t=hourly?positions.get(d.date):Date.parse(d.date+'T00:00:00Z');path+=(previous!==null&&t-previous===(hourly?1:86400000)&&d.date!=='Unknown hour'?' L':' M')+x(d.date)+' '+cy(d.cost);previous=t;}
   chart.append(svg('path',{d:path,fill:'none',stroke:'#202b34','stroke-width':2,'pointer-events':'none'}));
   if(days.length===1)chart.append(svg('circle',{cx:x(days[0].date),cy:cy(days[0].cost),r:3,fill:'#202b34'}));
   const labels=[days[0].date];let lastLabel=x(labels[0]);
+  if(hourly){
+    for(const d of days.slice(1))if(d.date==='Unknown hour'||(Number(d.date.slice(0,2))%4===0&&x(d.date)-lastLabel>38)){labels.push(d.date);lastLabel=x(d.date);}
+    for(const label of labels)chart.append(svg('text',{x:x(label),y:H-18,'text-anchor':'middle',fill:'#627181','font-size':12},label));
+    return;
+  }
   for(const d of days.slice(1,-1))if(d.date.endsWith('-01')&&x(d.date)-lastLabel>85&&x(days.at(-1).date)-x(d.date)>85){labels.push(d.date);lastLabel=x(d.date);}
   if(days.length>1&&x(days.at(-1).date)-x(labels[0])>65)labels.push(days.at(-1).date);
   for(const date of labels)chart.append(svg('text',{x:x(date),y:H-18,'text-anchor':'middle',fill:'#627181','font-size':12},date));

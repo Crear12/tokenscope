@@ -54,6 +54,13 @@ def public_data(folder):
             for row in csv.DictReader(stream):
                 rows.append({k: row[k] for k in ('date', 'host', 'app', 'model', 'cost_usd')} |
                             {'tokens': int(row['total_tokens']), 'requests': int(row['requests'])})
+    hourly_rows = []
+    path = folder / 'hourly_usage.csv'
+    if path.exists():
+        with path.open(encoding='utf-8', newline='') as stream:
+            for row in csv.DictReader(stream):
+                hourly_rows.append({k: row[k] for k in ('date', 'hour', 'host', 'app', 'model', 'cost_usd')} |
+                                   {'tokens': int(row['total_tokens']), 'requests': int(row['requests'])})
     session_rows = None
     if summary.get('session_detail_available'):
         session_rows = []
@@ -66,7 +73,7 @@ def public_data(folder):
                                         {k: int(row[k]) for k in ('requests', 'fresh_input_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'output_tokens')} |
                                         {'tokens': int(row['total_tokens'])} |
                                         {k: float(row.get(k) or 0) for k in ('tps_count', 'tps_sum', 'tps_max', 'native_tps_count', 'native_tps_sum', 'native_tps_max')})
-    return {'generated_at': summary['generated_at_utc'], 'rows': rows, 'session_rows': session_rows,
+    return {'generated_at': summary['generated_at_utc'], 'rows': rows, 'hourly_rows': hourly_rows, 'session_rows': session_rows,
             'sources': {name: {'collected_at': a['collected_at'], 'timezone': a['timezone']}
                         for name, a in summary['sources'].items()},
             'caveats': [s for s in summary['caveats'] if not s.startswith('TPS')]}
@@ -115,7 +122,10 @@ def collect_worker(config, destination, fingerprint, workdir=None):
             if name not in snapshots and name in old.get('sources', {}):
                 # Upgrade an existing aggregate-only cache without dropping offline hosts.
                 legacy.append(name)
-                data['rows'].extend(r for r in old.get('rows', []) if r['host'] == name)
+                retained = [r for r in old.get('rows', []) if r['host'] == name]
+                data['rows'].extend(retained)
+                prior_hours = [r for r in old.get('hourly_rows', []) if r['host'] == name]
+                data['hourly_rows'].extend(prior_hours or [dict(r, hour='Unknown hour') for r in retained])
                 data['session_rows'].extend(r for r in (old.get('session_rows') or []) if r['host'] == name)
                 data['sources'][name] = dict(old['sources'][name])
             source = data['sources'].setdefault(name, {'collected_at': None, 'timezone': None})
